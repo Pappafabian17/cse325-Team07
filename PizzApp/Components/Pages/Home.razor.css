@@ -1,0 +1,33 @@
+.pizzapp-home {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3rem;
+    padding: 3rem 2rem;
+}
+
+.pizzapp-home h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.pizzapp-home p {
+    font-size: 1.25rem;
+}
+
+.pizza-hero {
+    width: min(500px, 45%);
+    height: auto;
+    border-radius: 1rem;
+}
+
+@media (max-width: 700px) {
+    .pizzapp-home {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .pizza-hero {
+        width: 100%;
+    }
+}
