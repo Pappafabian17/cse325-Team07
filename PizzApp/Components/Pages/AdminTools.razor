@@ -1,0 +1,235 @@
+@page "/admin"
+@page "/admin/tools"
+@inject FrontendUserState UserState
+
+<PageTitle>Admin Tools - PizzApp</PageTitle>
+
+<div class="container-xl py-4 py-md-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="role-badge role-badge-admin">Admin Portal</span>
+                <span class="text-muted small">&bull; Store Administration</span>
+            </div>
+            <h1 class="h2 fw-bold mb-0">Administrator Tools & Controls</h1>
+        </div>
+        <div>
+            <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
+                <i class="bi bi-shield-check me-1"></i> Admin Privileges Active
+            </span>
+        </div>
+    </div>
+
+    @if (UserState.CurrentRole != "Administrator")
+    {
+        <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-0 bg-light">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-shield-exclamation text-danger fs-5"></i>
+                <span class="small">
+                    This is the Administrator Tools view. In production, this view is restricted to store administrators.
+                </span>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" @onclick='() => UserState.SetRole("Administrator")'>
+                Switch to Administrator Role
+            </button>
+        </div>
+    }
+
+    <!-- Navigation Pills / Section Selector -->
+    <ul class="nav nav-pills mb-4 gap-2" id="adminTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(_activeTab == "sales" ? "active" : "")" 
+                    @onclick='() => _activeTab = "sales"'>
+                <i class="bi bi-graph-up-arrow me-1"></i> Sales Summary
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(_activeTab == "menu" ? "active" : "")" 
+                    @onclick='() => _activeTab = "menu"'>
+                <i class="bi bi-card-list me-1"></i> Menu Controls
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(_activeTab == "staff" ? "active" : "")" 
+                    @onclick='() => _activeTab = "staff"'>
+                <i class="bi bi-people me-1"></i> Staff Management
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(_activeTab == "settings" ? "active" : "")" 
+                    @onclick='() => _activeTab = "settings"'>
+                <i class="bi bi-sliders me-1"></i> Store Settings
+            </button>
+        </li>
+    </ul>
+
+    <!-- 1. Sales Summary Section -->
+    @if (_activeTab == "sales")
+    {
+        <div class="row g-4 mb-4">
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    <span class="text-muted small fw-semibold text-uppercase">Today's Revenue</span>
+                    <span class="fs-2 fw-bold text-dark mt-2">$2,419.50</span>
+                    <span class="text-success small mt-1"><i class="bi bi-arrow-up"></i> +14% from yesterday</span>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    <span class="text-muted small fw-semibold text-uppercase">Orders Placed</span>
+                    <span class="fs-2 fw-bold text-dark mt-2">128</span>
+                    <span class="text-success small mt-1"><i class="bi bi-arrow-up"></i> 8 active currently</span>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    <span class="text-muted small fw-semibold text-uppercase">Average Ticket</span>
+                    <span class="fs-2 fw-bold text-dark mt-2">$18.90</span>
+                    <span class="text-muted small mt-1">2.1 items / order</span>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    <span class="text-muted small fw-semibold text-uppercase">Top Pizza</span>
+                    <span class="fs-2 fw-bold text-danger mt-2">Pepperoni</span>
+                    <span class="text-muted small mt-1">54 sold today</span>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- 2. Menu Controls Section -->
+    @if (_activeTab == "menu")
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="h5 fw-bold mb-0">Menu & Specialty Pizzas Control</h4>
+                <button class="btn btn-sm btn-pizzapp-primary">
+                    <i class="bi bi-plus-lg me-1"></i> Add Specialty Pizza
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Pizza Name</th>
+                            <th>Starting Price</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-semibold">Cheese Pizza</td>
+                            <td>$12.00</td>
+                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Pepperoni Pizza</td>
+                            <td>$14.00</td>
+                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Hawaiian Pizza</td>
+                            <td>$15.00</td>
+                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <!-- 3. Staff Management Section -->
+    @if (_activeTab == "staff")
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="h5 fw-bold mb-0">Staff Account Management</h4>
+                <button class="btn btn-sm btn-pizzapp-primary">
+                    <i class="bi bi-person-plus me-1"></i> Add Staff Member
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Staff Member</th>
+                            <th>Role</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-semibold">Sam Kitchen Staff</td>
+                            <td><span class="role-badge role-badge-staff">Kitchen Staff</span></td>
+                            <td class="text-muted">staff@pizzapp.com</td>
+                            <td><span class="badge bg-success-subtle text-success">Active Shift</span></td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Manage</button></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold">Jordan Administrator</td>
+                            <td><span class="role-badge role-badge-admin">Administrator</span></td>
+                            <td class="text-muted">admin@pizzapp.com</td>
+                            <td><span class="badge bg-primary-subtle text-primary">Owner / Admin</span></td>
+                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Manage</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <!-- 4. Store Settings Section -->
+    @if (_activeTab == "settings")
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+            <h4 class="h5 fw-bold mb-3">Store & Ordering Configuration</h4>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold text-dark">Store Operating Hours</label>
+                    <input type="text" class="form-control" value="11:00 AM – 10:00 PM Daily" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold text-dark">Delivery Radius (Miles)</label>
+                    <input type="number" class="form-control" value="8" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold text-dark">Standard Delivery Fee ($)</label>
+                    <input type="text" class="form-control" value="3.50" />
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold text-dark">Sales Tax Rate (%)</label>
+                    <input type="text" class="form-control" value="6.0" />
+                </div>
+                <div class="col-12 mt-3">
+                    <button class="btn btn-pizzapp-primary">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .nav-pills .nav-link {
+        color: #2B2926;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        background-color: #ffffff;
+        border: 1px solid #EADBCE;
+    }
+    .nav-pills .nav-link.active {
+        background-color: #C83A2A;
+        border-color: #C83A2A;
+        color: #ffffff;
+    }
+</style>
+
+@code {
+    private string _activeTab = "sales";
+}

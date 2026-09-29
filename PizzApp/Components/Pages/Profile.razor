@@ -1,0 +1,156 @@
+@page "/profile"
+@implements IDisposable
+@inject FrontendUserState UserState
+@inject NavigationManager Navigation
+
+<PageTitle>Profile & Account Settings - PizzApp</PageTitle>
+
+<div class="container-xl py-4 py-md-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+        <div>
+            <h1 class="h2 fw-bold mb-1">Profile & Account Settings</h1>
+            <p class="text-muted mb-0">Manage your contact information, default delivery address, and security.</p>
+        </div>
+        <div>
+            <button class="btn btn-outline-danger px-3" @onclick="HandleLogout">
+                <i class="bi bi-box-arrow-right me-1"></i> Sign Out
+            </button>
+        </div>
+    </div>
+
+    @if (_showSavedAlert)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> Settings saved successfully (frontend simulation).
+            <button type="button" class="btn-close" @onclick="() => _showSavedAlert = false"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <!-- User Info Summary Card -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white">
+                <div class="mx-auto mb-3" style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #C83A2A 0%, #F2B84B 100%); color: #fff; font-size: 2rem; font-weight: 700; display: flex; align-items: center; justify-content: center;">
+                    @(UserState.UserName.Length > 0 ? UserState.UserName[0] : 'U')
+                </div>
+                <h3 class="h5 fw-bold mb-1">@(string.IsNullOrEmpty(UserState.UserName) ? "Guest User" : UserState.UserName)</h3>
+                <p class="text-muted small mb-2">@(string.IsNullOrEmpty(UserState.UserEmail) ? "guest@pizzapp.com" : UserState.UserEmail)</p>
+                <div class="mb-3">
+                    <span class="role-badge @GetRoleBadgeClass(UserState.CurrentRole)">
+                        @UserState.CurrentRole
+                    </span>
+                </div>
+                <div class="border-top pt-3 text-start small text-muted">
+                    <div class="d-flex justify-content-between py-1">
+                        <span>Account Mode:</span>
+                        <span class="text-dark">Frontend Demo</span>
+                    </div>
+                    <div class="d-flex justify-content-between py-1">
+                        <span>Member Since:</span>
+                        <span class="text-dark">September 2026</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tabs / Forms -->
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-geo-alt text-danger"></i> Default Delivery Address
+                </h4>
+                <p class="text-muted small mb-4">This address will be automatically selected for your pizza deliveries.</p>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label small fw-semibold text-dark">Street Address</label>
+                        <input type="text" class="form-control" @bind="_street" placeholder="123 Campus Dr" />
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small fw-semibold text-dark">Apartment, Suite, Unit</label>
+                        <input type="text" class="form-control" @bind="_unit" placeholder="Apt 4B" />
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small fw-semibold text-dark">City</label>
+                        <input type="text" class="form-control" @bind="_city" placeholder="Rexburg" />
+                    </div>
+                    <div class="col-6 col-sm-6">
+                        <label class="form-label small fw-semibold text-dark">State</label>
+                        <input type="text" class="form-control" @bind="_state" placeholder="ID" />
+                    </div>
+                    <div class="col-6 col-sm-6">
+                        <label class="form-label small fw-semibold text-dark">ZIP Code</label>
+                        <input type="text" class="form-control" @bind="_zip" placeholder="83440" />
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button class="btn btn-pizzapp-primary" @onclick="SaveSettings">
+                            <i class="bi bi-save me-1"></i> Save Address
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Password & Security Card -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-shield-lock text-danger"></i> Password & Security
+                </h4>
+                <p class="text-muted small mb-4">Change your password or update your security credentials.</p>
+
+                <div class="row g-3">
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small fw-semibold text-dark">Current Password</label>
+                        <input type="password" class="form-control" placeholder="••••••••" />
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small fw-semibold text-dark">New Password</label>
+                        <input type="password" class="form-control" placeholder="••••••••" />
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button class="btn btn-outline-secondary" @onclick="SaveSettings">
+                            Update Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _street = "525 S Center St";
+    private string _unit = "Suite 200";
+    private string _city = "Rexburg";
+    private string _state = "ID";
+    private string _zip = "83460";
+    private bool _showSavedAlert = false;
+
+    protected override void OnInitialized()
+    {
+        UserState.OnChange += StateHasChanged;
+    }
+
+    private void SaveSettings()
+    {
+        _showSavedAlert = true;
+    }
+
+    private void HandleLogout()
+    {
+        UserState.Logout();
+        Navigation.NavigateTo("/");
+    }
+
+    private static string GetRoleBadgeClass(string? role) => role switch
+    {
+        "Customer" => "role-badge-customer",
+        "Staff" => "role-badge-staff",
+        "Administrator" => "role-badge-admin",
+        _ => "role-badge-customer"
+    };
+
+    public void Dispose()
+    {
+        UserState.OnChange -= StateHasChanged;
+    }
+}

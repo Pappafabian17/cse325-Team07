@@ -1,0 +1,143 @@
+@page "/orders"
+@inject FrontendUserState UserState
+
+<PageTitle>Order History & Tracking - PizzApp</PageTitle>
+
+<div class="container-xl py-4 py-md-5">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+        <div>
+            <h1 class="h2 fw-bold mb-1">Order History & Tracking</h1>
+            <p class="text-muted mb-0">Follow your active pizza delivery in real-time or view your past order receipts.</p>
+        </div>
+        <div>
+            <NavLink href="menu" class="btn btn-pizzapp-primary">
+                <i class="bi bi-plus-circle me-1"></i> Order New Pizza
+            </NavLink>
+        </div>
+    </div>
+
+    @if (UserState.CurrentRole != "Customer" && UserState.CurrentRole != "Administrator")
+    {
+        <div class="alert alert-info d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-0 bg-light">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle text-primary fs-5"></i>
+                <span class="small">
+                    Viewing order history preview. In the actual app, customers access their orders once logged in.
+                </span>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" @onclick='() => UserState.SetRole("Customer")'>
+                Switch to Customer Role
+            </button>
+        </div>
+    }
+
+    <!-- Active Order Live Tracker -->
+    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-5">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
+            <div>
+                <span class="badge bg-danger-subtle text-danger px-3 py-1 rounded-pill fw-semibold mb-1">
+                    <i class="bi bi-broadcast me-1"></i> Live Tracking
+                </span>
+                <h3 class="h5 fw-bold mb-0">Order #PA-98214</h3>
+            </div>
+            <div class="text-sm-end">
+                <span class="text-muted small d-block">Estimated Delivery:</span>
+                <span class="fw-bold text-dark fs-5">25 – 35 mins</span>
+            </div>
+        </div>
+
+        <!-- Progress Tracker Bar -->
+        <div class="position-relative my-4 px-2">
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-danger" role="progressbar" style="width: 65%;" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+
+            <div class="d-flex justify-content-between position-relative mt-n3" style="margin-top: -19px;">
+                <!-- Step 1 -->
+                <div class="text-center" style="width: 80px;">
+                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                        <i class="bi bi-check-lg"></i>
+                    </div>
+                    <span class="small fw-semibold mt-2 d-block text-dark">Received</span>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="text-center" style="width: 80px;">
+                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                        <i class="bi bi-check-lg"></i>
+                    </div>
+                    <span class="small fw-semibold mt-2 d-block text-dark">Baking</span>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="text-center" style="width: 80px;">
+                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
+                        <i class="bi bi-bicycle"></i>
+                    </div>
+                    <span class="small fw-bold mt-2 d-block text-danger">On the Way</span>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="text-center" style="width: 80px;">
+                    <div class="rounded-circle bg-light border text-muted mx-auto d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                        <i class="bi bi-house"></i>
+                    </div>
+                    <span class="small fw-normal mt-2 d-block text-muted">Delivered</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-light p-3 rounded-3 mt-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 small">
+            <div>
+                <strong>Items:</strong> 1x Large Pepperoni Pizza, 1x Cheesy Breadsticks
+            </div>
+            <div>
+                <strong>Delivering to:</strong> 525 S Center St, Rexburg, ID
+            </div>
+        </div>
+    </div>
+
+    <!-- Past Orders List -->
+    <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+        <i class="bi bi-clock-history text-danger"></i> Past Orders
+    </h4>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Order ID</th>
+                        <th>Date</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="ps-4 fw-bold">#PA-97103</td>
+                        <td class="text-muted">Sep 20, 2026</td>
+                        <td>1x Medium Hawaiian, 1x 2L Soda</td>
+                        <td class="fw-semibold">$24.50</td>
+                        <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Delivered</span></td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-outline-secondary">View Receipt</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4 fw-bold">#PA-96024</td>
+                        <td class="text-muted">Sep 14, 2026</td>
+                        <td>2x Large Sausage, Garlic Knots</td>
+                        <td class="fw-semibold">$38.00</td>
+                        <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Delivered</span></td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-outline-secondary">View Receipt</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PizzApp.Components;
 using PizzApp.Data;
+using PizzApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,21 +9,39 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Register purely frontend UI state for role simulation
+builder.Services.AddScoped<FrontendUserState>();
+
 // Configure Entity Framework Core for PostgreSQL / Neon.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContextFactory<PizzAppDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (!string.IsNullOrWhiteSpace(connectionString))
+    {
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        options.UseNpgsql("Host=localhost;Database=pizzapp_dev;Username=postgres;Password=postgres");
+    }
+});
 
 var app = builder.Build();
 
-await using (var scope = app.Services.CreateAsyncScope())
+if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    var dbFactory =
-        scope.ServiceProvider.GetRequiredService<IDbContextFactory<PizzAppDbContext>>();
-
-    await using var db = await dbFactory.CreateDbContextAsync();
-
-    await DbInitializer.SeedAsync(db);
+    try
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PizzAppDbContext>>();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        await DbInitializer.SeedAsync(db);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Could not initialize database. Continuing in offline mode.");
+    }
 }
 
 // Configure the HTTP request pipeline.

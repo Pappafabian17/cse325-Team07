@@ -1,18 +1,50 @@
-﻿@page "/"
+@page "/"
+@implements IDisposable
+@inject FrontendUserState UserState
 
-<PageTitle>PizzApp</PageTitle>
+<PageTitle>PizzApp - Fresh Pizza Built Your Way</PageTitle>
 
-<div class="pizzapp-home">
-    <div>
-        <h1>PizzApp Home Page</h1>
-        <p>Team 07 Pizza Ordering Application</p>
+<div class="container-xl py-4 py-md-5">
+    <div class="pizzapp-home">
+        <div class="hero-text-content">
+            <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill fw-semibold mb-3">
+                🍕 BYU CSE 325 &bull; Team 07
+            </span>
+            <h1 class="display-4 fw-bold mb-3">PizzApp Home Page</h1>
+            <p class="lead text-muted mb-2">Team 07 Pizza Ordering Application</p>
+            <p class="fs-5 mb-4">
+                Fresh pizza, built your way.
+            </p>
 
-        <p>
-            Fresh pizza, built your way.
-        </p>
+            <div class="d-flex flex-wrap gap-3">
+                <a href="menu" class="btn btn-pizzapp-primary btn-lg shadow-sm">
+                    <i class="bi bi-journal-text me-2"></i> View Our Menu
+                </a>
+                @if (UserState.CurrentRole == "Customer")
+                {
+                    <a href="orders" class="btn btn-pizzapp-outline btn-lg">
+                        <i class="bi bi-clock-history me-2"></i> Track Orders
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="hero-image-wrapper">
+            <img src="images/pizza-hero.png"
+                 alt="Fresh pizza"
+                 class="pizza-hero shadow-lg" />
+        </div>
     </div>
-
-    <img src="images/pizza-hero.png"
-         alt="Fresh pizza"
-         class="pizza-hero" />
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        UserState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        UserState.OnChange -= StateHasChanged;
+    }
+}

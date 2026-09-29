@@ -1,0 +1,108 @@
+@implements IDisposable
+@inject FrontendUserState UserState
+
+<footer class="pizzapp-footer mt-auto border-top">
+    <div class="container-xl py-5 px-3 px-md-4">
+        <div class="row g-4 justify-content-between">
+            <!-- Brand Column -->
+            <div class="col-12 col-md-4">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <img src="images/pizzapp-logo.png" alt="PizzApp Logo" style="height: 40px; width: auto;" />
+                    <span class="fs-4 fw-bold text-dark">PizzApp</span>
+                </div>
+                <p class="text-muted small mb-3" style="max-width: 320px; line-height: 1.6;">
+                    Handcrafted specialty pizzas and custom creations made fresh to order with premium ingredients and our secret dough recipe.
+                </p>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill">
+                        <i class="bi bi-clock me-1"></i> Open Daily: 11am – 10pm
+                    </span>
+                    <span class="badge bg-warning-subtle text-dark px-2 py-1 rounded-pill">
+                        <i class="bi bi-geo-alt me-1"></i> Delivery & Pickup
+                    </span>
+                </div>
+            </div>
+
+            <!-- Quick Navigation -->
+            <div class="col-6 col-sm-4 col-md-2">
+                <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Explore</h6>
+                <ul class="list-unstyled d-flex flex-column gap-2 small">
+                    <li><NavLink href="" class="text-muted text-decoration-none footer-link" Match="NavLinkMatch.All">Home</NavLink></li>
+                    <li><NavLink href="menu" class="text-muted text-decoration-none footer-link">Our Menu</NavLink></li>
+                    @if (UserState.CurrentRole == "Customer")
+                    {
+                        <li><NavLink href="cart" class="text-muted text-decoration-none footer-link">Shopping Cart</NavLink></li>
+                        <li><NavLink href="orders" class="text-muted text-decoration-none footer-link">Order Tracking</NavLink></li>
+                    }
+                </ul>
+            </div>
+
+            <!-- Portals & Account -->
+            <div class="col-6 col-sm-4 col-md-3">
+                <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Account & Portals</h6>
+                <ul class="list-unstyled d-flex flex-column gap-2 small">
+                    @if (UserState.IsAuthenticated)
+                    {
+                        <li><NavLink href="profile" class="text-muted text-decoration-none footer-link">My Profile / Settings</NavLink></li>
+                        @if (UserState.CurrentRole == "Staff")
+                        {
+                            <li><NavLink href="staff" class="text-muted text-decoration-none footer-link">Staff Dashboard</NavLink></li>
+                        }
+                        @if (UserState.CurrentRole == "Administrator")
+                        {
+                            <li><NavLink href="admin" class="text-muted text-decoration-none footer-link">Admin Tools</NavLink></li>
+                        }
+                    }
+                    else
+                    {
+                        <li class="text-muted small">Use the role simulator to preview Customer, Staff, or Admin views.</li>
+                    }
+                </ul>
+            </div>
+
+            <!-- Course / Project Info -->
+            <div class="col-12 col-sm-4 col-md-3">
+                <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Project</h6>
+                <p class="text-muted small mb-2">
+                    <strong>BYU CSE 325</strong> &bull; Team 07
+                </p>
+                <p class="text-muted small mb-0">
+                    Fabian Pappa &bull; Eric Arndt &bull; Kehinde Odumosu &bull; Ederson Jimenez
+                </p>
+            </div>
+        </div>
+
+        <div class="border-top mt-4 pt-3 d-flex flex-column flex-sm-row align-items-center justify-content-between gap-2">
+            <span class="text-muted small">
+                &copy; @DateTime.UtcNow.Year PizzApp &bull; Team 07. All rights reserved.
+            </span>
+            <div class="d-flex gap-3 small text-muted">
+                <span>Fast &bull; Fresh &bull; Hot</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<style>
+    .pizzapp-footer {
+        background-color: #FFF8EB;
+        border-color: #EADBCE !important;
+    }
+
+    .footer-link:hover {
+        color: #C83A2A !important;
+        text-decoration: underline !important;
+    }
+</style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        UserState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        UserState.OnChange -= StateHasChanged;
+    }
+}

@@ -1,0 +1,194 @@
+@page "/menu"
+
+<PageTitle>Menu - PizzApp</PageTitle>
+
+<div class="container-xl py-4 py-md-5">
+    <!-- Header Banner -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-5 pb-3 border-bottom">
+        <div>
+            <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill fw-semibold mb-2">
+                🍕 Handcrafted Daily
+            </span>
+            <h1 class="display-5 fw-bold mb-1">Our Specialty Pizzas</h1>
+            <p class="text-muted mb-0">Crafted with hand-tossed dough, rich tomato sauce, and 100% whole milk mozzarella.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success-subtle text-success fs-6 px-3 py-2 rounded-pill">
+                <i class="bi bi-fire me-1"></i> Hot & Fresh from the Oven
+            </span>
+        </div>
+    </div>
+
+    <!-- Specialty Pizzas Responsive Grid -->
+    <div class="row g-4">
+        @foreach (var pizza in SpecialtyPizzas)
+        {
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden pizza-card">
+                    <!-- Static Pizza Image -->
+                    <div class="position-relative bg-light text-center p-3 pizza-img-container">
+                        <img src="@pizza.ImagePath" 
+                             alt="@pizza.Name Pizza" 
+                             class="img-fluid pizza-card-img" 
+                             onerror="this.src='images/pizza-hero.png'" />
+                        @if (!pizza.IsAvailable)
+                        {
+                            <span class="badge bg-secondary position-absolute top-0 start-0 m-3">Sold Out</span>
+                        }
+                    </div>
+
+                    <!-- Pizza Details -->
+                    <div class="card-body d-flex flex-column p-4">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <h5 class="card-title fw-bold mb-0 text-dark">@pizza.Name</h5>
+                            <span class="fs-5 fw-bold text-danger">$@pizza.SmallPrice.ToString("F2")</span>
+                        </div>
+                        <p class="card-text text-muted small mb-3">@pizza.Description</p>
+
+                        <!-- Included Ingredients -->
+                        <div class="mb-3 flex-grow-1">
+                            <span class="text-uppercase small fw-bold text-muted d-block mb-2" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                                Included Ingredients:
+                            </span>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var ingredient in pizza.Ingredients)
+                                {
+                                    <span class="badge ingredient-pill">@ingredient</span>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Price Breakdown by Size -->
+                        <div class="pt-3 border-top mt-auto">
+                            <div class="d-flex justify-content-between text-muted small mb-3" style="font-size: 0.75rem;">
+                                <span>SM: <strong>$@pizza.SmallPrice.ToString("F2")</strong></span>
+                                <span>MD: <strong>$@pizza.MediumPrice.ToString("F2")</strong></span>
+                                <span>LG: <strong>$@pizza.LargePrice.ToString("F2")</strong></span>
+                                <span>XL: <strong>$@pizza.XLargePrice.ToString("F2")</strong></span>
+                            </div>
+
+                            <NavLink href="cart" class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2">
+                                <i class="bi bi-cart-plus"></i> Order Now
+                            </NavLink>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .pizza-card {
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        background-color: #ffffff;
+        border: 1px solid #EADBCE !important;
+    }
+
+    .pizza-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .pizza-img-container {
+        height: 190px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #FFFDF9;
+    }
+
+    .pizza-card-img {
+        max-height: 160px;
+        object-fit: contain;
+        transition: transform 0.3s ease;
+    }
+
+    .pizza-card:hover .pizza-card-img {
+        transform: scale(1.06);
+    }
+
+    .ingredient-pill {
+        background-color: #FFF8EB;
+        color: #78350F;
+        border: 1px solid #FDE68A;
+        font-weight: 500;
+        font-size: 0.73rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+    }
+</style>
+
+@code {
+    private record PizzaItem(
+        string Name,
+        string Description,
+        string ImagePath,
+        string[] Ingredients,
+        decimal SmallPrice,
+        decimal MediumPrice,
+        decimal LargePrice,
+        decimal XLargePrice,
+        bool IsAvailable = true
+    );
+
+    private static readonly List<PizzaItem> SpecialtyPizzas = new()
+    {
+        new(
+            "Cheese",
+            "Classic favorite with our rich tomato marinara and golden bubbly mozzarella.",
+            "images/pizzas/cheese.png",
+            new[] { "Mozzarella", "Marinara Sauce", "Oregano", "Parmesan" },
+            12.00m, 14.50m, 17.00m, 19.50m
+        ),
+        new(
+            "Pepperoni",
+            "Loaded edge-to-edge with savory, crispy-cupping pepperoni slices.",
+            "images/pizzas/pep.png",
+            new[] { "Pepperoni", "Mozzarella", "Marinara Sauce" },
+            13.50m, 16.00m, 18.50m, 21.00m
+        ),
+        new(
+            "Sausage",
+            "Savory Italian pork sausage blended with roasted garlic and Italian seasonings.",
+            "images/pizzas/sausage.png",
+            new[] { "Italian Sausage", "Mozzarella", "Marinara Sauce", "Garlic" },
+            13.50m, 16.00m, 18.50m, 21.00m
+        ),
+        new(
+            "Hawaiian",
+            "Sweet pineapple tidbits and savory smoked Canadian ham over melted cheese.",
+            "images/pizzas/hawaiian.png",
+            new[] { "Smoked Ham", "Pineapple", "Mozzarella", "Marinara Sauce" },
+            14.50m, 17.00m, 19.50m, 22.00m
+        ),
+        new(
+            "Veggie",
+            "Crisp bell peppers, red onions, earthy mushrooms, and ripe black olives.",
+            "images/pizzas/veggie.png",
+            new[] { "Mushrooms", "Bell Peppers", "Red Onions", "Black Olives", "Mozzarella" },
+            14.00m, 16.50m, 19.00m, 21.50m
+        ),
+        new(
+            "Meat Lovers",
+            "A hearty carnivore blend of pepperoni, Italian sausage, bacon, and ham.",
+            "images/pizzas/meat.png",
+            new[] { "Pepperoni", "Italian Sausage", "Smoked Bacon", "Ham", "Mozzarella" },
+            16.00m, 19.00m, 22.00m, 25.00m
+        ),
+        new(
+            "Supreme",
+            "The ultimate combination of meats, garden fresh veggies, and melted cheeses.",
+            "images/pizzas/supreme.png",
+            new[] { "Pepperoni", "Italian Sausage", "Mushrooms", "Bell Peppers", "Onions" },
+            16.00m, 19.00m, 22.00m, 25.00m
+        ),
+        new(
+            "House Special",
+            "Chef's specialty with garlic butter crust, tender grilled chicken, bacon, and herbs.",
+            "images/pizzas/house.png",
+            new[] { "Grilled Chicken", "Smoked Bacon", "Garlic Butter", "Red Onions", "Mozzarella" },
+            16.50m, 19.50m, 22.50m, 25.50m
+        )
+    };
+}

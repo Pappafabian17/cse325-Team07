@@ -3,31 +3,48 @@
     align-items: center;
     justify-content: space-between;
     gap: 3rem;
-    padding: 3rem 2rem;
+    padding: 2rem 0;
 }
 
-.pizzapp-home h1 {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+.hero-text-content {
+    flex: 1;
+    max-width: 580px;
 }
 
-.pizzapp-home p {
-    font-size: 1.25rem;
+.hero-image-wrapper {
+    flex: 1;
+    display: flex;
+    justify-content: center;
 }
 
 .pizza-hero {
-    width: min(500px, 45%);
+    width: 100%;
+    max-width: 480px;
     height: auto;
-    border-radius: 1rem;
+    border-radius: 1.5rem;
+    object-fit: cover;
+    transition: transform 0.3s ease;
 }
 
-@media (max-width: 700px) {
+.pizza-hero:hover {
+    transform: scale(1.02);
+}
+
+@media (max-width: 900px) {
     .pizzapp-home {
         flex-direction: column;
         text-align: center;
+        gap: 2.5rem;
+    }
+
+    .hero-text-content {
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     .pizza-hero {
-        width: 100%;
+        max-width: 380px;
     }
 }
