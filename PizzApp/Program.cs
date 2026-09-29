@@ -9,8 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Register purely frontend UI state for role simulation
+// Register purely frontend UI state and mock order management
 builder.Services.AddScoped<FrontendUserState>();
+builder.Services.AddScoped<CustomerOrderMockService>();
 
 // Configure Entity Framework Core for PostgreSQL / Neon.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

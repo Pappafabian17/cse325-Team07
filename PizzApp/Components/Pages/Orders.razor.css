@@ -1,0 +1,117 @@
+.active-order-card {
+    border: 1px solid #EADBCE !important;
+    transition: box-shadow 0.2s ease;
+}
+.active-order-card:hover {
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important;
+}
+
+.pulse-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #28a745;
+    box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    animation: pulse 1.6s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+/* Stepper Styling */
+.order-stepper {
+    position: relative;
+    margin: 1.5rem 0 2rem 0;
+}
+
+.stepper-progress {
+    position: absolute;
+    top: 20px;
+    left: 5%;
+    right: 5%;
+    height: 4px;
+    background-color: #E5E7EB;
+    z-index: 1;
+}
+
+.stepper-progress-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.step-item {
+    position: relative;
+    z-index: 2;
+    width: 90px;
+}
+
+.step-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    margin: 0 auto 0.5rem auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+
+.step-completed {
+    background-color: #C83A2A;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(200, 58, 42, 0.3);
+}
+
+.step-current {
+    background-color: #F2B84B;
+    color: #2B2926;
+    box-shadow: 0 0 0 4px rgba(242, 184, 75, 0.3);
+    font-weight: bold;
+}
+
+.step-pending {
+    background-color: #F3F4F6;
+    color: #9CA3AF;
+    border: 2px solid #E5E7EB;
+}
+
+.step-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #2B2926;
+}
+
+.step-sub {
+    display: block;
+    font-size: 0.72rem;
+    color: #6B7280;
+}
+
+@media (max-width: 600px) {
+    .step-item {
+        width: 70px;
+    }
+    .step-circle {
+        width: 34px;
+        height: 34px;
+        font-size: 0.9rem;
+    }
+    .step-label {
+        font-size: 0.75rem;
+    }
+    .step-sub {
+        display: none;
+    }
+}

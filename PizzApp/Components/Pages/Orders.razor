@@ -1,143 +1,625 @@
 @page "/orders"
+@implements IDisposable
 @inject FrontendUserState UserState
+@inject CustomerOrderMockService OrderService
+@inject NavigationManager Navigation
 
-<PageTitle>Order History & Tracking - PizzApp</PageTitle>
+<PageTitle>Customer Orders Dashboard - PizzApp</PageTitle>
 
 <div class="container-xl py-4 py-md-5">
+    <!-- Dashboard Header -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
         <div>
-            <h1 class="h2 fw-bold mb-1">Order History & Tracking</h1>
-            <p class="text-muted mb-0">Follow your active pizza delivery in real-time or view your past order receipts.</p>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-danger-subtle text-danger px-3 py-1 rounded-pill fw-semibold">
+                    <i class="bi bi-speedometer2 me-1"></i> Customer Dashboard
+                </span>
+                <span class="text-muted small">&bull; Mock Data Demo</span>
+            </div>
+            <h1 class="h2 fw-bold mb-0">My Orders & Live Tracking</h1>
         </div>
-        <div>
+        <div class="d-flex align-items-center gap-2">
             <NavLink href="menu" class="btn btn-pizzapp-primary">
                 <i class="bi bi-plus-circle me-1"></i> Order New Pizza
             </NavLink>
         </div>
     </div>
 
-    @if (UserState.CurrentRole != "Customer" && UserState.CurrentRole != "Administrator")
+    <!-- Notification / Action Alerts -->
+    @if (!string.IsNullOrEmpty(_notificationMessage))
     {
-        <div class="alert alert-info d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-0 bg-light">
+        <div class="alert @_notificationClass alert-dismissible fade show shadow-sm rounded-3 mb-4 d-flex align-items-center justify-content-between" role="alert">
             <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-info-circle text-primary fs-5"></i>
-                <span class="small">
-                    Viewing order history preview. In the actual app, customers access their orders once logged in.
-                </span>
+                <i class="bi @_notificationIcon fs-5"></i>
+                <span>@_notificationMessage</span>
             </div>
-            <button class="btn btn-sm btn-outline-primary" @onclick='() => UserState.SetRole("Customer")'>
-                Switch to Customer Role
-            </button>
+            <button type="button" class="btn-close" @onclick="() => _notificationMessage = null"></button>
         </div>
     }
 
-    <!-- Active Order Live Tracker -->
-    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-5">
-        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
-            <div>
-                <span class="badge bg-danger-subtle text-danger px-3 py-1 rounded-pill fw-semibold mb-1">
-                    <i class="bi bi-broadcast me-1"></i> Live Tracking
-                </span>
-                <h3 class="h5 fw-bold mb-0">Order #PA-98214</h3>
-            </div>
-            <div class="text-sm-end">
-                <span class="text-muted small d-block">Estimated Delivery:</span>
-                <span class="fw-bold text-dark fs-5">25 – 35 mins</span>
-            </div>
+    <!-- Tab / Filter Navigation -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div class="btn-group p-1 bg-white rounded-3 shadow-sm border" role="group">
+            <button class="btn btn-sm px-3 rounded-2 @(_filterTab == "active" ? "btn-pizzapp-primary text-white" : "btn-light text-dark")"
+                    @onclick='() => _filterTab = "active"'>
+                <i class="bi bi-clock-history me-1"></i> Active Orders (@ActiveOrders.Count)
+            </button>
+            <button class="btn btn-sm px-3 rounded-2 @(_filterTab == "past" ? "btn-pizzapp-primary text-white" : "btn-light text-dark")"
+                    @onclick='() => _filterTab = "past"'>
+                <i class="bi bi-journal-check me-1"></i> Past Order History (@PastOrders.Count)
+            </button>
+            <button class="btn btn-sm px-3 rounded-2 @(_filterTab == "all" ? "btn-pizzapp-primary text-white" : "btn-light text-dark")"
+                    @onclick='() => _filterTab = "all"'>
+                All Orders (@AllOrders.Count)
+            </button>
         </div>
 
-        <!-- Progress Tracker Bar -->
-        <div class="position-relative my-4 px-2">
-            <div class="progress" style="height: 6px;">
-                <div class="progress-bar bg-danger" role="progressbar" style="width: 65%;" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
-
-            <div class="d-flex justify-content-between position-relative mt-n3" style="margin-top: -19px;">
-                <!-- Step 1 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
-                        <i class="bi bi-check-lg"></i>
-                    </div>
-                    <span class="small fw-semibold mt-2 d-block text-dark">Received</span>
-                </div>
-
-                <!-- Step 2 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
-                        <i class="bi bi-check-lg"></i>
-                    </div>
-                    <span class="small fw-semibold mt-2 d-block text-dark">Baking</span>
-                </div>
-
-                <!-- Step 3 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
-                        <i class="bi bi-bicycle"></i>
-                    </div>
-                    <span class="small fw-bold mt-2 d-block text-danger">On the Way</span>
-                </div>
-
-                <!-- Step 4 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-light border text-muted mx-auto d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="bi bi-house"></i>
-                    </div>
-                    <span class="small fw-normal mt-2 d-block text-muted">Delivered</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-light p-3 rounded-3 mt-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 small">
-            <div>
-                <strong>Items:</strong> 1x Large Pepperoni Pizza, 1x Cheesy Breadsticks
-            </div>
-            <div>
-                <strong>Delivering to:</strong> 525 S Center St, Rexburg, ID
-            </div>
+        <div class="text-muted small">
+            <i class="bi bi-info-circle me-1"></i> Live tracking updates automatically with mock data.
         </div>
     </div>
 
-    <!-- Past Orders List -->
-    <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
-        <i class="bi bi-clock-history text-danger"></i> Past Orders
-    </h4>
+    <!-- 1. ACTIVE ORDERS SECTION -->
+    @if (_filterTab == "active" || _filterTab == "all")
+    {
+        <div class="mb-5">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h3 class="h4 fw-bold mb-0 d-flex align-items-center gap-2">
+                    <span class="pulse-indicator"></span> Active Orders in Progress (@ActiveOrders.Count)
+                </h3>
+            </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Order ID</th>
-                        <th>Date</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                        <th class="text-end pe-4">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="ps-4 fw-bold">#PA-97103</td>
-                        <td class="text-muted">Sep 20, 2026</td>
-                        <td>1x Medium Hawaiian, 1x 2L Soda</td>
-                        <td class="fw-semibold">$24.50</td>
-                        <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Delivered</span></td>
-                        <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-secondary">View Receipt</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="ps-4 fw-bold">#PA-96024</td>
-                        <td class="text-muted">Sep 14, 2026</td>
-                        <td>2x Large Sausage, Garlic Knots</td>
-                        <td class="fw-semibold">$38.00</td>
-                        <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Delivered</span></td>
-                        <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-secondary">View Receipt</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            @if (!ActiveOrders.Any())
+            {
+                <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
+                    <div class="text-muted mb-3">
+                        <i class="bi bi-bag-x fs-1"></i>
+                    </div>
+                    <h5 class="fw-semibold">No active orders right now</h5>
+                    <p class="text-muted small mb-4">Craving fresh pizza? Pick your favorites from our specialty menu.</p>
+                    <div>
+                        <NavLink href="menu" class="btn btn-pizzapp-primary px-4">Browse Menu</NavLink>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-4">
+                    @foreach (var order in ActiveOrders)
+                    {
+                        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white active-order-card">
+                            <!-- Card Header Bar -->
+                            <div class="card-header bg-white border-bottom p-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <h4 class="h5 fw-bold mb-0 text-dark">Order #@order.Id</h4>
+                                        <span class="badge @(order.FulfillmentType == OrderFulfillmentType.Delivery ? "bg-primary-subtle text-primary" : "bg-warning-subtle text-dark") rounded-pill">
+                                            @(order.FulfillmentType == OrderFulfillmentType.Delivery ? "🚚 Delivery" : "🛍️ Store Pickup")
+                                        </span>
+                                        <span class="badge bg-danger-subtle text-danger rounded-pill">
+                                            @GetStatusDisplay(order.Status)
+                                        </span>
+                                    </div>
+                                    <span class="text-muted small">
+                                        Placed at @order.CreatedAt.ToString("h:mm tt") &bull; @order.Items.Sum(i => i.Quantity) item(s)
+                                    </span>
+                                </div>
+
+                                <div class="d-flex flex-wrap align-items-center gap-2 text-md-end">
+                                    <div class="me-2">
+                                        <span class="text-muted small d-block">Estimated Time:</span>
+                                        <span class="fw-bold text-danger fs-6">@order.EstimatedTime</span>
+                                    </div>
+
+                                    <!-- Eligible Order Cancellation Button -->
+                                    @if (order.CanCancel)
+                                    {
+                                        <button class="btn btn-outline-danger btn-sm px-3" 
+                                                @onclick="() => OpenCancelModal(order)"
+                                                title="Cancel order while still in preparation">
+                                            <i class="bi bi-x-circle me-1"></i> Cancel Order
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted border py-2 px-3 rounded-pill" 
+                                              title="Order is already in the oven or ready/out for delivery and cannot be cancelled">
+                                            <i class="bi bi-lock-fill me-1 text-secondary"></i> Cancellation Closed
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Card Body: Status Stepper -->
+                            <div class="card-body p-4">
+                                <h6 class="text-muted small fw-bold text-uppercase mb-4" style="letter-spacing: 0.05em;">
+                                    Live Status Stages (@(order.FulfillmentType == OrderFulfillmentType.Delivery ? "Preparation & Delivery" : "Preparation & Pickup")):
+                                </h6>
+
+                                @if (order.FulfillmentType == OrderFulfillmentType.Delivery)
+                                {
+                                    <!-- Delivery Stepper -->
+                                    <div class="order-stepper mb-4">
+                                        <div class="stepper-progress">
+                                            <div class="stepper-progress-bar bg-danger" style="width: @GetDeliveryProgressWidth(order.Status);"></div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between position-relative">
+                                            <!-- Step 1: Received -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.Received)">
+                                                    <i class="bi bi-receipt"></i>
+                                                </div>
+                                                <span class="step-label">Received</span>
+                                                <span class="step-sub">Preparation</span>
+                                            </div>
+
+                                            <!-- Step 2: Baking / Prep -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.InPreparation, OrderStatus.Baking)">
+                                                    <i class="bi bi-fire"></i>
+                                                </div>
+                                                <span class="step-label">Baking</span>
+                                                <span class="step-sub">In the Oven</span>
+                                            </div>
+
+                                            <!-- Step 3: Out for Delivery -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.OutForDelivery)">
+                                                    <i class="bi bi-bicycle"></i>
+                                                </div>
+                                                <span class="step-label">On the Way</span>
+                                                <span class="step-sub">Delivery Driver</span>
+                                            </div>
+
+                                            <!-- Step 4: Delivered -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.Delivered)">
+                                                    <i class="bi bi-house-check"></i>
+                                                </div>
+                                                <span class="step-label">Delivered</span>
+                                                <span class="step-sub">Enjoy Pizza!</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <!-- Pickup Stepper -->
+                                    <div class="order-stepper mb-4">
+                                        <div class="stepper-progress">
+                                            <div class="stepper-progress-bar bg-danger" style="width: @GetPickupProgressWidth(order.Status);"></div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between position-relative">
+                                            <!-- Step 1: Received -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.Received)">
+                                                    <i class="bi bi-receipt"></i>
+                                                </div>
+                                                <span class="step-label">Received</span>
+                                                <span class="step-sub">Preparation</span>
+                                            </div>
+
+                                            <!-- Step 2: In Preparation / Baking -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.InPreparation, OrderStatus.Baking)">
+                                                    <i class="bi bi-fire"></i>
+                                                </div>
+                                                <span class="step-label">Baking</span>
+                                                <span class="step-sub">In the Oven</span>
+                                            </div>
+
+                                            <!-- Step 3: Ready for Pickup -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.ReadyForPickup)">
+                                                    <i class="bi bi-bag-check"></i>
+                                                </div>
+                                                <span class="step-label">Ready for Pickup</span>
+                                                <span class="step-sub">At Counter</span>
+                                            </div>
+
+                                            <!-- Step 4: Completed -->
+                                            <div class="step-item text-center">
+                                                <div class="step-circle @GetStepCircleClass(order.Status, OrderStatus.Completed)">
+                                                    <i class="bi bi-check2-all"></i>
+                                                </div>
+                                                <span class="step-label">Picked Up</span>
+                                                <span class="step-sub">Completed</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                <!-- Address / Order Info Banner -->
+                                <div class="p-3 bg-light rounded-3 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 small mb-3">
+                                    <div>
+                                        <i class="bi bi-geo-alt text-danger me-1"></i>
+                                        <strong>@(order.FulfillmentType == OrderFulfillmentType.Delivery ? "Delivery Address:" : "Pickup Location:")</strong>
+                                        <span class="text-muted">@order.DeliveryAddress</span>
+                                    </div>
+                                    <div>
+                                        <strong>Total Amount:</strong>
+                                        <span class="fw-bold text-dark fs-6">$@order.Total.ToString("F2")</span>
+                                    </div>
+                                </div>
+
+                                <!-- Collapsible Items List -->
+                                <div>
+                                    <h6 class="small fw-semibold text-muted mb-2">Order Items:</h6>
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var item in order.Items)
+                                        {
+                                            <div class="d-flex align-items-center justify-content-between p-2 rounded-2 bg-light">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <img src="@item.ImagePath" alt="@item.Name" class="rounded-2" style="width: 44px; height: 44px; object-fit: contain;" onerror="this.src='images/pizza-hero.png'" />
+                                                    <div>
+                                                        <span class="fw-bold text-dark small d-block">@item.Quantity x @item.Size @item.Name Pizza</span>
+                                                        <span class="text-muted" style="font-size: 0.75rem;">@item.Description</span>
+                                                    </div>
+                                                </div>
+                                                <span class="fw-semibold text-dark small">$@((item.UnitPrice * item.Quantity).ToString("F2"))</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         </div>
-    </div>
+    }
+
+    <!-- 2. PAST ORDER HISTORY SECTION -->
+    @if (_filterTab == "past" || _filterTab == "all")
+    {
+        <div class="mb-5">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h3 class="h4 fw-bold mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-clock-history text-danger"></i> Past Order History (@PastOrders.Count)
+                </h3>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Order ID</th>
+                                <th>Date</th>
+                                <th>Fulfillment</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th class="text-end pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in PastOrders)
+                            {
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="fw-bold text-dark d-block">#@order.Id</span>
+                                        <span class="text-muted small">@order.Items.Sum(i => i.Quantity) item(s)</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-dark small d-block">@order.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                        <span class="text-muted" style="font-size: 0.75rem;">@order.CreatedAt.ToString("h:mm tt")</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(order.FulfillmentType == OrderFulfillmentType.Delivery ? "bg-primary-subtle text-primary" : "bg-warning-subtle text-dark") rounded-pill">
+                                            @(order.FulfillmentType == OrderFulfillmentType.Delivery ? "🚚 Delivery" : "🛍️ Pickup")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            @foreach (var item in order.Items.Take(2))
+                                            {
+                                                <img src="@item.ImagePath" alt="@item.Name" class="rounded-1" style="width: 28px; height: 28px; object-fit: contain;" onerror="this.src='images/pizza-hero.png'" title="@item.Name" />
+                                            }
+                                            <span class="small text-truncate" style="max-width: 180px;">
+                                                @string.Join(", ", order.Items.Select(i => $"{i.Quantity}x {i.Name}"))
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark">$@order.Total.ToString("F2")</span>
+                                    </td>
+                                    <td>
+                                        @if (order.Status == OrderStatus.Cancelled)
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-1" title="@order.CancellationReason">
+                                                <i class="bi bi-x-circle me-1"></i> Cancelled
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">
+                                                <i class="bi bi-check-circle me-1"></i> @GetStatusDisplay(order.Status)
+                                            </span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="d-inline-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => OpenReceiptModal(order)">
+                                                Receipt
+                                            </button>
+
+                                            <!-- "Order Again" button: Replicates previous order with current pricing -->
+                                            <button class="btn btn-sm btn-pizzapp-secondary fw-semibold d-flex align-items-center gap-1"
+                                                    @onclick="() => HandleReorder(order.Id)"
+                                                    title="Replicate this order using current pricing and availability">
+                                                <i class="bi bi-arrow-repeat"></i> Order Again
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
 </div>
+
+<!-- CANCELLATION CONFIRMATION MODAL -->
+@if (_orderToCancel != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Cancel Order #@_orderToCancel.Id
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseCancelModal"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <p class="text-dark mb-2">
+                        Are you sure you want to cancel this order? It is currently in the <strong>@GetStatusDisplay(_orderToCancel.Status)</strong> stage and is eligible for cancellation.
+                    </p>
+                    <p class="text-muted small mb-3">
+                        Once cancelled, your refund of <strong>$@_orderToCancel.Total.ToString("F2")</strong> will be processed to your original payment method.
+                    </p>
+
+                    <label class="form-label small fw-semibold text-dark">Reason for cancellation (optional):</label>
+                    <select class="form-select mb-2" @bind="_cancellationReason">
+                        <option value="Changed my mind">Changed my mind</option>
+                        <option value="Ordered by mistake">Ordered by mistake</option>
+                        <option value="Delivery takes too long">Delivery takes too long</option>
+                        <option value="Need to change items/address">Need to change items or address</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CloseCancelModal">
+                        Keep Order
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmCancelOrder">
+                        <i class="bi bi-check-lg me-1"></i> Yes, Cancel Order
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- RECEIPT DETAILS MODAL -->
+@if (_selectedReceiptOrder != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header border-bottom">
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">Receipt &bull; Order #@_selectedReceiptOrder.Id</h5>
+                        <span class="text-muted small">@_selectedReceiptOrder.CreatedAt.ToString("MMMM dd, yyyy h:mm tt")</span>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="CloseReceiptModal"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded-3 small">
+                        <span><strong>Method:</strong> @(_selectedReceiptOrder.FulfillmentType == OrderFulfillmentType.Delivery ? "Delivery" : "Pickup")</span>
+                        <span class="badge @(_selectedReceiptOrder.Status == OrderStatus.Cancelled ? "bg-danger" : "bg-success")">
+                            @GetStatusDisplay(_selectedReceiptOrder.Status)
+                        </span>
+                    </div>
+
+                    <h6 class="small fw-bold text-uppercase text-muted mb-2">Items:</h6>
+                    <div class="d-flex flex-column gap-2 mb-3">
+                        @foreach (var item in _selectedReceiptOrder.Items)
+                        {
+                            <div class="d-flex justify-content-between small">
+                                <span>@item.Quantity x @item.Size @item.Name Pizza</span>
+                                <span class="fw-semibold text-dark">$@((item.UnitPrice * item.Quantity).ToString("F2"))</span>
+                            </div>
+                        }
+                    </div>
+
+                    <hr />
+
+                    <div class="d-flex justify-content-between text-muted small py-1">
+                        <span>Subtotal</span>
+                        <span>$@_selectedReceiptOrder.Subtotal.ToString("F2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small py-1">
+                        <span>Delivery Fee</span>
+                        <span>$@_selectedReceiptOrder.DeliveryFee.ToString("F2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small py-1">
+                        <span>Sales Tax (6%)</span>
+                        <span>$@_selectedReceiptOrder.Tax.ToString("F2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between fw-bold fs-6 py-2 border-top mt-2">
+                        <span>Total Paid</span>
+                        <span class="text-danger">$@_selectedReceiptOrder.Total.ToString("F2")</span>
+                    </div>
+                </div>
+                <div class="modal-footer border-top d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CloseReceiptModal">
+                        Close
+                    </button>
+                    <button type="button" class="btn btn-pizzapp-secondary fw-semibold" 
+                            @onclick="() => { var id = _selectedReceiptOrder.Id; CloseReceiptModal(); HandleReorder(id); }">
+                        <i class="bi bi-arrow-repeat me-1"></i> Order Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@code {
+    private string _filterTab = "active";
+    private string? _notificationMessage;
+    private string _notificationClass = "alert-success";
+    private string _notificationIcon = "bi-check-circle-fill text-success";
+
+    private CustomerOrder? _orderToCancel;
+    private string _cancellationReason = "Changed my mind";
+    private CustomerOrder? _selectedReceiptOrder;
+
+    private List<CustomerOrder> AllOrders => OrderService.GetAllOrders();
+    private List<CustomerOrder> ActiveOrders => OrderService.GetActiveOrders();
+    private List<CustomerOrder> PastOrders => OrderService.GetPastOrders();
+
+    protected override void OnInitialized()
+    {
+        OrderService.OnOrdersChanged += HandleOrdersChanged;
+    }
+
+    private void HandleOrdersChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OpenCancelModal(CustomerOrder order)
+    {
+        _orderToCancel = order;
+        _cancellationReason = "Changed my mind";
+    }
+
+    private void CloseCancelModal()
+    {
+        _orderToCancel = null;
+    }
+
+    private void ConfirmCancelOrder()
+    {
+        if (_orderToCancel == null) return;
+
+        var orderId = _orderToCancel.Id;
+        var success = OrderService.CancelOrder(orderId, _cancellationReason);
+
+        if (success)
+        {
+            _notificationMessage = $"Order #{orderId} has been successfully cancelled. A full refund has been initiated.";
+            _notificationClass = "alert-warning";
+            _notificationIcon = "bi-check-circle-fill text-warning";
+        }
+        else
+        {
+            _notificationMessage = $"Order #{orderId} could not be cancelled because it is already being prepared or out for delivery.";
+            _notificationClass = "alert-danger";
+            _notificationIcon = "bi-exclamation-triangle-fill text-danger";
+        }
+
+        CloseCancelModal();
+    }
+
+    private void HandleReorder(string orderId)
+    {
+        var newOrder = OrderService.ReplicateOrder(orderId);
+        if (newOrder != null)
+        {
+            _filterTab = "active"; // switch to active view so customer sees the new order immediately
+            _notificationMessage = $"🎉 Order #{newOrder.Id} placed! Your previous order has been replicated with current pricing (${newOrder.Total:F2}). It is now in preparation.";
+            _notificationClass = "alert-success";
+            _notificationIcon = "bi-check-circle-fill text-success";
+        }
+    }
+
+    private void OpenReceiptModal(CustomerOrder order)
+    {
+        _selectedReceiptOrder = order;
+    }
+
+    private void CloseReceiptModal()
+    {
+        _selectedReceiptOrder = null;
+    }
+
+    private static string GetStatusDisplay(OrderStatus status) => status switch
+    {
+        OrderStatus.Received => "Order Received",
+        OrderStatus.InPreparation => "In Preparation",
+        OrderStatus.Baking => "Baking in Oven",
+        OrderStatus.ReadyForPickup => "Ready for Pickup",
+        OrderStatus.OutForDelivery => "Out for Delivery",
+        OrderStatus.Delivered => "Delivered",
+        OrderStatus.Completed => "Picked Up",
+        OrderStatus.Cancelled => "Cancelled",
+        _ => status.ToString()
+    };
+
+    private static string GetDeliveryProgressWidth(OrderStatus status) => status switch
+    {
+        OrderStatus.Received => "10%",
+        OrderStatus.InPreparation => "38%",
+        OrderStatus.Baking => "50%",
+        OrderStatus.OutForDelivery => "80%",
+        OrderStatus.Delivered => "100%",
+        _ => "0%"
+    };
+
+    private static string GetPickupProgressWidth(OrderStatus status) => status switch
+    {
+        OrderStatus.Received => "10%",
+        OrderStatus.InPreparation => "38%",
+        OrderStatus.Baking => "50%",
+        OrderStatus.ReadyForPickup => "80%",
+        OrderStatus.Completed => "100%",
+        _ => "0%"
+    };
+
+    private static string GetStepCircleClass(OrderStatus currentStatus, params OrderStatus[] targetStatuses)
+    {
+        int currentRank = GetRank(currentStatus);
+        int targetMinRank = targetStatuses.Min(GetRank);
+
+        if (currentRank > targetMinRank)
+        {
+            return "step-completed";
+        }
+        else if (currentRank == targetMinRank || targetStatuses.Contains(currentStatus))
+        {
+            return "step-current";
+        }
+        else
+        {
+            return "step-pending";
+        }
+    }
+
+    private static int GetRank(OrderStatus status) => status switch
+    {
+        OrderStatus.Received => 1,
+        OrderStatus.InPreparation => 2,
+        OrderStatus.Baking => 2,
+        OrderStatus.OutForDelivery => 3,
+        OrderStatus.ReadyForPickup => 3,
+        OrderStatus.Delivered => 4,
+        OrderStatus.Completed => 4,
+        OrderStatus.Cancelled => 0,
+        _ => 0
+    };
+
+    public void Dispose()
+    {
+        OrderService.OnOrdersChanged -= HandleOrdersChanged;
+    }
+}
