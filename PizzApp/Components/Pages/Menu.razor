@@ -1,4 +1,7 @@
 @page "/menu"
+@using Microsoft.EntityFrameworkCore
+@using PizzApp.Data
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
 
 <PageTitle>Menu - PizzApp</PageTitle>
 
@@ -51,7 +54,7 @@
                                 Included Ingredients:
                             </span>
                             <div class="d-flex flex-wrap gap-1">
-                                @foreach (var ingredient in pizza.Ingredients)
+                                @foreach (var ingredient in GetIngredients(pizza.Name))
                                 {
                                     <span class="badge ingredient-pill">@ingredient</span>
                                 }
@@ -120,75 +123,87 @@
 </style>
 
 @code {
-    private record PizzaItem(
-        string Name,
-        string Description,
-        string ImagePath,
-        string[] Ingredients,
-        decimal SmallPrice,
-        decimal MediumPrice,
-        decimal LargePrice,
-        decimal XLargePrice,
-        bool IsAvailable = true
-    );
+    private List<SpecialtyPizza> SpecialtyPizzas = new();
 
-    private static readonly List<PizzaItem> SpecialtyPizzas = new()
+    private static readonly Dictionary<string, string[]> IngredientsByPizza =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Cheese"] =
+            [
+                "Mozzarella",
+                "Marinara Sauce",
+                "Oregano",
+                "Parmesan"
+            ],
+            ["Pepperoni"] =
+            [
+                "Pepperoni",
+                "Mozzarella",
+                "Marinara Sauce"
+            ],
+            ["Sausage"] =
+            [
+                "Italian Sausage",
+                "Mozzarella",
+                "Marinara Sauce",
+                "Garlic"
+            ],
+            ["Hawaiian"] =
+            [
+                "Smoked Ham",
+                "Pineapple",
+                "Mozzarella",
+                "Marinara Sauce"
+            ],
+            ["Veggie"] =
+            [
+                "Mushrooms",
+                "Bell Peppers",
+                "Red Onions",
+                "Black Olives",
+                "Mozzarella"
+            ],
+            ["Meat Lovers"] =
+            [
+                "Pepperoni",
+                "Italian Sausage",
+                "Smoked Bacon",
+                "Ham",
+                "Mozzarella"
+            ],
+            ["Supreme"] =
+            [
+                "Pepperoni",
+                "Italian Sausage",
+                "Mushrooms",
+                "Bell Peppers",
+                "Onions"
+            ],
+            ["House Special"] =
+            [
+                "Grilled Chicken",
+                "Smoked Bacon",
+                "Garlic Butter",
+                "Red Onions",
+                "Mozzarella"
+            ]
+        };
+
+    protected override async Task OnInitializedAsync()
     {
-        new(
-            "Cheese",
-            "Classic favorite with our rich tomato marinara and golden bubbly mozzarella.",
-            "images/pizzas/cheese.png",
-            new[] { "Mozzarella", "Marinara Sauce", "Oregano", "Parmesan" },
-            12.00m, 14.50m, 17.00m, 19.50m
-        ),
-        new(
-            "Pepperoni",
-            "Loaded edge-to-edge with savory, crispy-cupping pepperoni slices.",
-            "images/pizzas/pep.png",
-            new[] { "Pepperoni", "Mozzarella", "Marinara Sauce" },
-            13.50m, 16.00m, 18.50m, 21.00m
-        ),
-        new(
-            "Sausage",
-            "Savory Italian pork sausage blended with roasted garlic and Italian seasonings.",
-            "images/pizzas/sausage.png",
-            new[] { "Italian Sausage", "Mozzarella", "Marinara Sauce", "Garlic" },
-            13.50m, 16.00m, 18.50m, 21.00m
-        ),
-        new(
-            "Hawaiian",
-            "Sweet pineapple tidbits and savory smoked Canadian ham over melted cheese.",
-            "images/pizzas/hawaiian.png",
-            new[] { "Smoked Ham", "Pineapple", "Mozzarella", "Marinara Sauce" },
-            14.50m, 17.00m, 19.50m, 22.00m
-        ),
-        new(
-            "Veggie",
-            "Crisp bell peppers, red onions, earthy mushrooms, and ripe black olives.",
-            "images/pizzas/veggie.png",
-            new[] { "Mushrooms", "Bell Peppers", "Red Onions", "Black Olives", "Mozzarella" },
-            14.00m, 16.50m, 19.00m, 21.50m
-        ),
-        new(
-            "Meat Lovers",
-            "A hearty carnivore blend of pepperoni, Italian sausage, bacon, and ham.",
-            "images/pizzas/meat.png",
-            new[] { "Pepperoni", "Italian Sausage", "Smoked Bacon", "Ham", "Mozzarella" },
-            16.00m, 19.00m, 22.00m, 25.00m
-        ),
-        new(
-            "Supreme",
-            "The ultimate combination of meats, garden fresh veggies, and melted cheeses.",
-            "images/pizzas/supreme.png",
-            new[] { "Pepperoni", "Italian Sausage", "Mushrooms", "Bell Peppers", "Onions" },
-            16.00m, 19.00m, 22.00m, 25.00m
-        ),
-        new(
-            "House Special",
-            "Chef's specialty with garlic butter crust, tender grilled chicken, bacon, and herbs.",
-            "images/pizzas/house.png",
-            new[] { "Grilled Chicken", "Smoked Bacon", "Garlic Butter", "Red Onions", "Mozzarella" },
-            16.50m, 19.50m, 22.50m, 25.50m
-        )
-    };
+        await using var db =
+            await DbFactory.CreateDbContextAsync();
+
+        SpecialtyPizzas = await db.SpecialtyPizzas
+            .AsNoTracking()
+            .OrderBy(pizza => pizza.Id)
+            .ToListAsync();
+    }
+
+    private static IEnumerable<string> GetIngredients(string pizzaName)
+    {
+        return IngredientsByPizza.TryGetValue(pizzaName, out var ingredients)
+            ? ingredients
+            : Array.Empty<string>();
+    }
 }
