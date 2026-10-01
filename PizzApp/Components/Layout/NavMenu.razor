@@ -1,5 +1,3 @@
-@implements IDisposable
-@inject FrontendUserState UserState
 @inject NavigationManager Navigation
 
 <header class="pizzapp-navbar border-bottom">
@@ -24,100 +22,97 @@
             </NavLink>
 
             <!-- Role-Based Navigation: Customer -->
-            @if (UserState.CurrentRole == "Customer")
-            {
+            <AuthorizeView Roles="Customer,Administrator">
                 <NavLink href="orders" class="nav-item-link">
                     <i class="bi bi-clock-history me-1"></i> Order History
                 </NavLink>
                 <NavLink href="cart" class="nav-item-link nav-item-cart">
                     <i class="bi bi-cart3 me-1"></i> Shopping Cart
                 </NavLink>
-            }
+            </AuthorizeView>
 
             <!-- Role-Based Navigation: Staff -->
-            @if (UserState.CurrentRole == "Staff")
-            {
+            <AuthorizeView Roles="Staff,Administrator">
                 <NavLink href="staff" class="nav-item-link nav-item-staff">
                     <i class="bi bi-clipboard2-check me-1"></i> Staff Dashboard
                 </NavLink>
-            }
+            </AuthorizeView>
 
             <!-- Role-Based Navigation: Administrator -->
-            @if (UserState.CurrentRole == "Administrator")
-            {
+            <AuthorizeView Roles="Administrator">
                 <NavLink href="admin" class="nav-item-link nav-item-admin">
                     <i class="bi bi-shield-lock me-1"></i> Admin Tools
                 </NavLink>
-            }
+            </AuthorizeView>
         </nav>
 
-        <!-- Right Side: User Profile & Role Switcher (Desktop) -->
+        <!-- Right Side: User Profile & Role Badges (Desktop) -->
         <div class="d-none d-lg-flex align-items-center gap-3">
-            @if (UserState.IsAuthenticated)
-            {
-                <div class="dropdown position-relative">
-                    <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 py-1 px-2 border-0 bg-white shadow-sm user-dropdown-btn"
-                            type="button"
-                            @onclick="ToggleUserMenu"
-                            aria-expanded="@_isUserMenuOpen">
-                        <span class="user-avatar">
-                            @(UserState.UserName.Length > 0 ? UserState.UserName[0] : 'U')
-                        </span>
-                        <div class="text-start d-flex flex-column pe-1">
-                            <span class="fw-semibold small text-dark user-display-name">@UserState.UserName</span>
-                            <span class="role-badge @GetRoleBadgeClass(UserState.CurrentRole)">
-                                @UserState.CurrentRole
-                            </span>
-                        </div>
-                    </button>
-
-                    @if (_isUserMenuOpen)
-                    {
-                        <div class="dropdown-menu dropdown-menu-end show shadow border p-2 mt-2 user-dropdown-menu" style="position: absolute; right: 0; min-width: 220px; z-index: 1050;">
-                            <div class="px-3 py-2 border-bottom mb-1">
-                                <div class="fw-bold text-dark text-truncate">@UserState.UserName</div>
-                                <div class="small text-muted text-truncate">@UserState.UserEmail</div>
-                            </div>
-                            <NavLink href="profile" class="dropdown-item py-2 rounded d-flex align-items-center gap-2" @onclick="CloseUserMenu">
-                                <i class="bi bi-person-gear text-primary"></i> Profile / Account Settings
-                            </NavLink>
-                            <hr class="dropdown-divider my-1" />
-                            <button class="dropdown-item py-2 rounded text-danger d-flex align-items-center gap-2" @onclick="HandleLogout">
-                                <i class="bi bi-box-arrow-right"></i> Logout
-                            </button>
-                        </div>
+            <AuthorizeView>
+                <Authorized>
+                    @{
+                        var user = context.User;
+                        var role = user.IsInRole("Administrator") ? "Administrator" :
+                                   user.IsInRole("Staff") ? "Staff" : "Customer";
+                        var displayName = user.Identity?.Name ?? "User";
                     }
-                </div>
-            }
+                    <div class="dropdown position-relative">
+                        <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 py-1 px-2 border-0 bg-white shadow-sm user-dropdown-btn"
+                                type="button"
+                                @onclick="ToggleUserMenu"
+                                aria-expanded="@_isUserMenuOpen">
+                            <span class="user-avatar">
+                                @(displayName.Length > 0 ? char.ToUpper(displayName[0]) : 'U')
+                            </span>
+                            <div class="text-start d-flex flex-column pe-1">
+                                <span class="fw-semibold small text-dark user-display-name">@displayName</span>
+                                <span class="role-badge @GetRoleBadgeClass(role)">
+                                    @role
+                                </span>
+                            </div>
+                        </button>
 
-            <!-- Quick Frontend Role Switcher -->
-            <div class="demo-role-switcher" title="Simulate user role for testing and review">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-light text-muted border-end-0 py-1" style="font-size: 0.75rem;">
-                        <i class="bi bi-person-gear"></i>
-                    </span>
-                    <select class="form-select form-select-sm border-start-0 py-1" 
-                            style="font-size: 0.8rem; min-width: 140px; font-weight: 500;"
-                            value="@UserState.CurrentRole"
-                            @onchange="OnRoleSelectChanged">
-                        <option value="Guest">👤 Guest (Public)</option>
-                        <option value="Customer">🍕 Customer</option>
-                        <option value="Staff">👨‍🍳 Staff</option>
-                        <option value="Administrator">⚡ Administrator</option>
-                    </select>
-                </div>
-            </div>
+                        @if (_isUserMenuOpen)
+                        {
+                            <div class="dropdown-menu dropdown-menu-end show shadow border p-2 mt-2 user-dropdown-menu" style="position: absolute; right: 0; min-width: 220px; z-index: 1050;">
+                                <div class="px-3 py-2 border-bottom mb-1">
+                                    <div class="fw-bold text-dark text-truncate">@displayName</div>
+                                    <div class="small text-muted text-truncate">Role: @role</div>
+                                </div>
+                                <NavLink href="profile" class="dropdown-item py-2 rounded d-flex align-items-center gap-2" @onclick="CloseUserMenu">
+                                    <i class="bi bi-person-gear text-primary"></i> Profile / Account Settings
+                                </NavLink>
+                                <hr class="dropdown-divider my-1" />
+                                <form method="post" action="/Account/Logout">
+                                    <button type="submit" class="dropdown-item py-2 rounded text-danger d-flex align-items-center gap-2 border-0 bg-transparent w-100 text-start">
+                                        <i class="bi bi-box-arrow-right"></i> Sign Out
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="login" class="btn btn-outline-danger btn-sm px-3 fw-semibold">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+                        </a>
+                        <a href="register" class="btn btn-danger btn-sm px-3 fw-semibold shadow-sm">
+                            <i class="bi bi-person-plus me-1"></i> Register
+                        </a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
 
         <!-- Mobile & Tablet Hamburger & Cart Button -->
         <div class="d-flex d-lg-none align-items-center gap-2">
             <!-- Mobile Quick Cart for Customer -->
-            @if (UserState.CurrentRole == "Customer")
-            {
+            <AuthorizeView Roles="Customer,Administrator">
                 <NavLink href="cart" class="btn btn-sm btn-outline-danger p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
                     <i class="bi bi-cart3 fs-6"></i>
                 </NavLink>
-            }
+            </AuthorizeView>
 
             <button class="btn btn-light border p-2 mobile-toggle-btn rounded-3" 
                     type="button" 
@@ -142,76 +137,77 @@
                 </NavLink>
 
                 <!-- Role-Based Navigation: Customer -->
-                @if (UserState.CurrentRole == "Customer")
-                {
+                <AuthorizeView Roles="Customer,Administrator">
                     <NavLink href="orders" class="mobile-nav-link" @onclick="CloseMobileMenu">
                         <i class="bi bi-clock-history me-2"></i> Order History / Tracking
                     </NavLink>
                     <NavLink href="cart" class="mobile-nav-link" @onclick="CloseMobileMenu">
                         <i class="bi bi-cart3 me-2"></i> Shopping Cart
                     </NavLink>
-                }
+                </AuthorizeView>
 
                 <!-- Role-Based Navigation: Staff -->
-                @if (UserState.CurrentRole == "Staff")
-                {
+                <AuthorizeView Roles="Staff,Administrator">
                     <NavLink href="staff" class="mobile-nav-link mobile-nav-staff" @onclick="CloseMobileMenu">
                         <i class="bi bi-clipboard2-check me-2"></i> Staff Dashboard
                     </NavLink>
-                }
+                </AuthorizeView>
 
                 <!-- Role-Based Navigation: Administrator -->
-                @if (UserState.CurrentRole == "Administrator")
-                {
+                <AuthorizeView Roles="Administrator">
                     <NavLink href="admin" class="mobile-nav-link mobile-nav-admin" @onclick="CloseMobileMenu">
                         <i class="bi bi-shield-lock me-2"></i> Admin Tools
                     </NavLink>
-                }
+                </AuthorizeView>
             </div>
 
             <!-- Mobile Auth Controls & Profile -->
-            @if (UserState.IsAuthenticated)
-            {
-                <div class="border-top pt-3">
-                    <div class="d-flex align-items-center justify-content-between mb-3 px-2 py-1 bg-light rounded-3">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="user-avatar">
-                                @(UserState.UserName.Length > 0 ? UserState.UserName[0] : 'U')
-                            </span>
-                            <div>
-                                <div class="fw-bold small text-dark">@UserState.UserName</div>
-                                <span class="role-badge @GetRoleBadgeClass(UserState.CurrentRole)">
-                                    @UserState.CurrentRole
+            <AuthorizeView>
+                <Authorized>
+                    @{
+                        var mobileUser = context.User;
+                        var mobileRole = mobileUser.IsInRole("Administrator") ? "Administrator" :
+                                         mobileUser.IsInRole("Staff") ? "Staff" : "Customer";
+                        var mobileName = mobileUser.Identity?.Name ?? "User";
+                    }
+                    <div class="border-top pt-3">
+                        <div class="d-flex align-items-center justify-content-between mb-3 px-2 py-1 bg-light rounded-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="user-avatar">
+                                    @(mobileName.Length > 0 ? char.ToUpper(mobileName[0]) : 'U')
                                 </span>
+                                <div>
+                                    <div class="fw-bold small text-dark">@mobileName</div>
+                                    <span class="role-badge @GetRoleBadgeClass(mobileRole)">
+                                        @mobileRole
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="d-flex flex-column gap-1">
-                        <NavLink href="profile" class="mobile-nav-link" @onclick="CloseMobileMenu">
-                            <i class="bi bi-person-gear me-2"></i> Profile / Account Settings
-                        </NavLink>
-                        <button class="btn btn-outline-danger w-100 text-start mt-2 d-flex align-items-center gap-2" @onclick="HandleLogout">
-                            <i class="bi bi-box-arrow-right"></i> Logout
-                        </button>
+                        <div class="d-flex flex-column gap-1">
+                            <NavLink href="profile" class="mobile-nav-link" @onclick="CloseMobileMenu">
+                                <i class="bi bi-person-gear me-2"></i> Profile / Account Settings
+                            </NavLink>
+                            <form method="post" action="/Account/Logout">
+                                <button type="submit" class="btn btn-outline-danger w-100 text-start mt-2 d-flex align-items-center gap-2">
+                                    <i class="bi bi-box-arrow-right"></i> Sign Out
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            }
-
-            <!-- Mobile Role Switcher for Testing -->
-            <div class="mt-3 pt-3 border-top">
-                <label class="form-label small text-muted mb-1 d-flex align-items-center gap-1">
-                    <i class="bi bi-sliders"></i> Role Simulator (Demo Mode):
-                </label>
-                <select class="form-select form-select-sm" 
-                        value="@UserState.CurrentRole"
-                        @onchange="OnRoleSelectChanged">
-                    <option value="Guest">👤 Guest (Unauthenticated)</option>
-                    <option value="Customer">🍕 Customer</option>
-                    <option value="Staff">👨‍🍳 Staff</option>
-                    <option value="Administrator">⚡ Administrator</option>
-                </select>
-            </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="border-top pt-3 d-flex flex-column gap-2">
+                        <a href="login" class="btn btn-outline-danger w-100 py-2 fw-semibold" @onclick="CloseMobileMenu">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+                        </a>
+                        <a href="register" class="btn btn-danger w-100 py-2 fw-semibold" @onclick="CloseMobileMenu">
+                            <i class="bi bi-person-plus me-1"></i> Register
+                        </a>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
     }
 </header>
@@ -219,11 +215,6 @@
 @code {
     private bool _isMobileMenuOpen = false;
     private bool _isUserMenuOpen = false;
-
-    protected override void OnInitialized()
-    {
-        UserState.OnChange += StateHasChanged;
-    }
 
     private void ToggleMobileMenu()
     {
@@ -245,22 +236,6 @@
         _isUserMenuOpen = false;
     }
 
-    private void HandleLogout()
-    {
-        _isUserMenuOpen = false;
-        _isMobileMenuOpen = false;
-        UserState.Logout();
-        Navigation.NavigateTo("/");
-    }
-
-    private void OnRoleSelectChanged(ChangeEventArgs e)
-    {
-        var role = e.Value?.ToString() ?? "Guest";
-        UserState.SetRole(role);
-        _isUserMenuOpen = false;
-        _isMobileMenuOpen = false;
-    }
-
     private static string GetRoleBadgeClass(string? role) => role switch
     {
         "Customer" => "role-badge-customer",
@@ -268,9 +243,4 @@
         "Administrator" => "role-badge-admin",
         _ => "role-badge-customer"
     };
-
-    public void Dispose()
-    {
-        UserState.OnChange -= StateHasChanged;
-    }
 }

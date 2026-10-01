@@ -1,5 +1,5 @@
 @page "/cart"
-@inject FrontendUserState UserState
+@attribute [Authorize(Roles = "Customer,Administrator")]
 @inject NavigationManager Navigation
 
 <PageTitle>Shopping Cart - PizzApp</PageTitle>
@@ -16,21 +16,6 @@
             </NavLink>
         </div>
     </div>
-
-    @if (UserState.CurrentRole != "Customer" && UserState.CurrentRole != "Administrator")
-    {
-        <div class="alert alert-info d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-0 bg-light">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-info-circle text-primary fs-5"></i>
-                <span class="small">
-                    Viewing cart preview. In the actual app, customers access this cart once logged in.
-                </span>
-            </div>
-            <button class="btn btn-sm btn-outline-primary" @onclick='() => UserState.SetRole("Customer")'>
-                Switch to Customer Role
-            </button>
-        </div>
-    }
 
     <div class="row g-4">
         <!-- Cart Items List -->
