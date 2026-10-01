@@ -1,4 +1,8 @@
 @page "/menu"
+@using PizzApp.Models
+@using PizzApp.Services
+@inject CartService CartService
+@inject NavigationManager Navigation
 
 <PageTitle>Menu - PizzApp</PageTitle>
 
@@ -67,9 +71,11 @@
                                 <span>XL: <strong>$@pizza.XLargePrice.ToString("F2")</strong></span>
                             </div>
 
-                            <NavLink href="cart" class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2">
-                                <i class="bi bi-cart-plus"></i> Order Now
-                            </NavLink>
+                            <button type="button"
+                             class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2"
+                              @onclick="() => AddToCart(pizza)">
+                              <i class="bi bi-cart-plus"></i> Order Now
+                               </button>
                         </div>
                     </div>
                 </div>
@@ -191,4 +197,21 @@
             16.50m, 19.50m, 22.50m, 25.50m
         )
     };
+
+    private void AddToCart(PizzaItem pizza)
+    {
+        var cartItem = new CartItem
+        {
+            PizzaId = SpecialtyPizzas.IndexOf(pizza) + 1,
+            PizzaName = pizza.Name,
+            ImagePath = pizza.ImagePath,
+            Size = "Small",
+            BasePrice = pizza.SmallPrice,
+            Quantity = 1
+        };
+
+        CartService.AddItem(cartItem);
+
+        Navigation.NavigateTo("/cart");
+    }
 }

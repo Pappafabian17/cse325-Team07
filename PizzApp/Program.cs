@@ -12,6 +12,9 @@ builder.Services.AddRazorComponents()
 // Register purely frontend UI state for role simulation
 builder.Services.AddScoped<FrontendUserState>();
 
+// Register shopping cart state
+builder.Services.AddScoped<CartService>();
+
 // Configure Entity Framework Core for PostgreSQL / Neon.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 

@@ -1,15 +1,24 @@
 @page "/cart"
+
+@using PizzApp.Models
+@using PizzApp.Services
+
 @inject FrontendUserState UserState
+@inject CartService CartService
 @inject NavigationManager Navigation
 
 <PageTitle>Shopping Cart - PizzApp</PageTitle>
 
 <div class="container-xl py-4 py-md-5">
+
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
         <div>
             <h1 class="h2 fw-bold mb-1">Your Shopping Cart</h1>
-            <p class="text-muted mb-0">Review your pizzas, customize toppings, and proceed to checkout.</p>
+            <p class="text-muted mb-0">
+                Review your pizzas, customize toppings, and proceed to checkout.
+            </p>
         </div>
+
         <div>
             <NavLink href="menu" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i> Add More Pizzas
@@ -26,88 +35,222 @@
                     Viewing cart preview. In the actual app, customers access this cart once logged in.
                 </span>
             </div>
-            <button class="btn btn-sm btn-outline-primary" @onclick='() => UserState.SetRole("Customer")'>
-                Switch to Customer Role
-            </button>
+
+                 <button class="btn btn-sm btn-outline-primary"
+                     @onclick='() => UserState.SetRole("Customer")'>
+                        Switch to Customer Role
+                 </button>
         </div>
     }
 
-    <div class="row g-4">
-        <!-- Cart Items List -->
-        <div class="col-12 col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-3">
-                <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
-                    <i class="bi bi-cart3 text-danger"></i> Selected Items (2)
-                </h4>
+    @if (CartService.Items.Count == 0)
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+            <i class="bi bi-cart-x display-4 text-muted mb-3"></i>
 
-                <div class="d-flex flex-column gap-3">
-                    <!-- Item 1 -->
-                    <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 p-3 bg-light rounded-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <img src="images/pizzas/pep.png" alt="Pepperoni Pizza" class="rounded-3" style="width: 60px; height: 60px; object-fit: contain;" onerror="this.src='images/pizza-hero.png'" />
-                            <div>
-                                <h6 class="fw-bold mb-0">Large Pepperoni Pizza</h6>
-                                <span class="text-muted small">Hand-tossed dough, extra mozzarella, signature sauce</span>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center justify-content-between gap-4">
-                            <span class="fw-bold text-dark fs-5">$18.00</span>
-                            <button class="btn btn-outline-danger btn-sm rounded-circle" style="width: 32px; height: 32px; padding: 0;">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
+            <h3 class="h4 fw-bold">Your cart is empty</h3>
 
-                    <!-- Item 2 -->
-                    <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 p-3 bg-light rounded-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <img src="images/pizzas/cheese.png" alt="Cheese Pizza" class="rounded-3" style="width: 60px; height: 60px; object-fit: contain;" onerror="this.src='images/pizza-hero.png'" />
-                            <div>
-                                <h6 class="fw-bold mb-0">Medium Classic Cheese</h6>
-                                <span class="text-muted small">Crispy crust, rich tomato marinara, four-cheese blend</span>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center justify-content-between gap-4">
-                            <span class="fw-bold text-dark fs-5">$14.00</span>
-                            <button class="btn btn-outline-danger btn-sm rounded-circle" style="width: 32px; height: 32px; padding: 0;">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+            <p class="text-muted mb-4">
+                You haven't added any pizzas to your cart yet.
+            </p>
 
-        <!-- Order Summary & Checkout -->
-        <div class="col-12 col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                <h4 class="h5 fw-bold mb-3">Order Summary</h4>
-                <div class="d-flex justify-content-between py-2 text-muted small">
-                    <span>Subtotal</span>
-                    <span class="fw-semibold text-dark">$32.00</span>
-                </div>
-                <div class="d-flex justify-content-between py-2 text-muted small">
-                    <span>Delivery Fee</span>
-                    <span class="fw-semibold text-dark">$3.50</span>
-                </div>
-                <div class="d-flex justify-content-between py-2 text-muted small">
-                    <span>Sales Tax (6%)</span>
-                    <span class="fw-semibold text-dark">$1.92</span>
-                </div>
-                <hr />
-                <div class="d-flex justify-content-between py-2 fs-5 fw-bold mb-3">
-                    <span>Total</span>
-                    <span class="text-danger">$37.42</span>
-                </div>
-
-                <NavLink href="orders" class="btn btn-pizzapp-primary w-100 py-2 mb-2">
-                    <i class="bi bi-bag-check me-1"></i> Proceed to Checkout
+            <div>
+                <NavLink href="menu" class="btn btn-pizzapp-primary px-4">
+                    <i class="bi bi-pizza me-1"></i> Browse Menu
                 </NavLink>
-
-                <p class="text-muted text-center small mb-0 mt-2">
-                    <i class="bi bi-shield-check text-success me-1"></i> Secure 256-bit SSL encrypted checkout
-                </p>
             </div>
         </div>
-    </div>
+    }
+    else
+    {
+        <div class="row g-4">
+
+            <!-- Cart Items List -->
+            <div class="col-12 col-lg-8">
+
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-3">
+
+                    <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+                        <i class="bi bi-cart3 text-danger"></i>
+                        Selected Items (@CartService.ItemCount)
+                    </h4>
+
+                    <div class="d-flex flex-column gap-3">
+
+                        @foreach (var item in CartService.Items)
+                        {
+                            <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 p-3 bg-light rounded-3">
+
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <img src="@item.ImagePath"
+                                         alt="@item.PizzaName"
+                                         class="rounded-3"
+                                         style="width: 60px; height: 60px; object-fit: contain;"
+                                         onerror="this.src='images/pizza-hero.png'" />
+
+                                    <div>
+                                        <h6 class="fw-bold mb-1">
+                                            @item.Size @item.PizzaName Pizza
+                                        </h6>
+
+                                        @if (item.Toppings.Count > 0)
+                                        {
+                                            <span class="text-muted small">
+                                                Toppings:
+                                                @string.Join(", ", item.Toppings.Select(t => t.Name))
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">
+                                                No extra toppings
+                                            </span>
+                                        }
+
+                                        <div class="mt-1">
+                                            <span class="text-muted small">
+                                                Unit price: $@item.UnitPrice.ToString("0.00")
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="d-flex align-items-center justify-content-between gap-3">
+
+                                    <div class="d-flex align-items-center gap-2">
+
+                                        <button type="button"
+                                                class="btn btn-outline-secondary btn-sm"
+                                                @onclick="() => DecreaseQuantity(item)">
+                                            <i class="bi bi-dash"></i>
+                                        </button>
+
+                                        <span class="fw-semibold px-1">
+                                            @item.Quantity
+                                        </span>
+
+                                        <button type="button"
+                                                class="btn btn-outline-secondary btn-sm"
+                                                @onclick="() => IncreaseQuantity(item)">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+
+                                    </div>
+
+                                    <span class="fw-bold text-dark fs-5">
+                                        $@item.TotalPrice.ToString("0.00")
+                                    </span>
+
+                                    <button type="button"
+                                            class="btn btn-outline-danger btn-sm rounded-circle"
+                                            style="width: 32px; height: 32px; padding: 0;"
+                                            @onclick="() => RemoveItem(item)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary & Checkout -->
+            <div class="col-12 col-lg-4">
+
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+
+                    <h4 class="h5 fw-bold mb-3">Order Summary</h4>
+
+                    <div class="d-flex justify-content-between py-2 text-muted small">
+                        <span>Subtotal</span>
+                        <span class="fw-semibold text-dark">
+                            $@CartService.Subtotal.ToString("0.00")
+                        </span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-2 text-muted small">
+                        <span>Delivery Fee</span>
+                        <span class="fw-semibold text-dark">
+                            $@CartService.DeliveryFee.ToString("0.00")
+                        </span>
+                    </div>
+
+                    <div class="d-flex justify-content-between py-2 text-muted small">
+                        <span>Sales Tax (6%)</span>
+                        <span class="fw-semibold text-dark">
+                            $@CartService.Tax.ToString("0.00")
+                        </span>
+                    </div>
+
+                    <hr />
+
+                    <div class="d-flex justify-content-between py-2 fs-5 fw-bold mb-3">
+                        <span>Total</span>
+
+                        <span class="text-danger">
+                            $@CartService.Total.ToString("0.00")
+                        </span>
+                    </div>
+
+                    <button type="button"
+                            class="btn btn-pizzapp-primary w-100 py-2 mb-2"
+                            @onclick="ProceedToCheckout">
+                        <i class="bi bi-bag-check me-1"></i>
+                        Proceed to Checkout
+                    </button>
+
+                    <p class="text-muted text-center small mb-0 mt-2">
+                        <i class="bi bi-shield-check text-success me-1"></i>
+                        Secure 256-bit SSL encrypted checkout
+                    </p>
+
+                </div>
+            </div>
+
+        </div>
+    }
+
 </div>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        CartService.OnChange += HandleCartChanged;
+    }
+
+    private void HandleCartChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void IncreaseQuantity(CartItem item)
+    {
+        CartService.UpdateQuantity(item, item.Quantity + 1);
+    }
+
+    private void DecreaseQuantity(CartItem item)
+    {
+        CartService.UpdateQuantity(item, item.Quantity - 1);
+    }
+
+    private void RemoveItem(CartItem item)
+    {
+        CartService.RemoveItem(item);
+    }
+
+    private void ProceedToCheckout()
+{
+    Navigation.NavigateTo("/checkout");
+}
+
+    public void Dispose()
+    {
+        CartService.OnChange -= HandleCartChanged;
+    }
+}
