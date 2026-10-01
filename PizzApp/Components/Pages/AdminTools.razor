@@ -1,6 +1,6 @@
 @page "/admin"
 @page "/admin/tools"
-@inject FrontendUserState UserState
+@attribute [Authorize(Roles = "Administrator")]
 
 <PageTitle>Admin Tools - PizzApp</PageTitle>
 
@@ -20,20 +20,6 @@
         </div>
     </div>
 
-    @if (UserState.CurrentRole != "Administrator")
-    {
-        <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-0 bg-light">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-shield-exclamation text-danger fs-5"></i>
-                <span class="small">
-                    This is the Administrator Tools view. In production, this view is restricted to store administrators.
-                </span>
-            </div>
-            <button class="btn btn-sm btn-outline-danger" @onclick='() => UserState.SetRole("Administrator")'>
-                Switch to Administrator Role
-            </button>
-        </div>
-    }
 
     <!-- Navigation Pills / Section Selector -->
     <ul class="nav nav-pills mb-4 gap-2" id="adminTabs" role="tablist">

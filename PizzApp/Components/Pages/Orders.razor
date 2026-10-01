@@ -1,5 +1,5 @@
 @page "/orders"
-@inject FrontendUserState UserState
+@attribute [Authorize(Roles = "Customer,Administrator")]
 
 <PageTitle>Order History & Tracking - PizzApp</PageTitle>
 
@@ -15,21 +15,6 @@
             </NavLink>
         </div>
     </div>
-
-    @if (UserState.CurrentRole != "Customer" && UserState.CurrentRole != "Administrator")
-    {
-        <div class="alert alert-info d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-0 bg-light">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-info-circle text-primary fs-5"></i>
-                <span class="small">
-                    Viewing order history preview. In the actual app, customers access their orders once logged in.
-                </span>
-            </div>
-            <button class="btn btn-sm btn-outline-primary" @onclick='() => UserState.SetRole("Customer")'>
-                Switch to Customer Role
-            </button>
-        </div>
-    }
 
     <!-- Active Order Live Tracker -->
     <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-5">
