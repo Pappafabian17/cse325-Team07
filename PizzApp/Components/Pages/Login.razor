@@ -1,0 +1,140 @@
+@page "/login"
+
+@inject FrontendUserState UserState
+@inject NavigationManager Navigation
+
+<PageTitle>Login - PizzApp</PageTitle>
+
+<div class="container py-5">
+
+    <div class="row justify-content-center">
+
+        <div class="col-12 col-md-8 col-lg-5">
+
+            <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5 bg-white">
+
+                <div class="text-center mb-4">
+                    <i class="bi bi-person-circle text-danger display-4"></i>
+
+                    <h1 class="h3 fw-bold mt-3 mb-1">
+                        Welcome Back
+                    </h1>
+
+                    <p class="text-muted mb-0">
+                        Sign in to your PizzApp account.
+                    </p>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                {
+                    <div class="alert alert-danger rounded-3">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        @ErrorMessage
+                    </div>
+                }
+
+                <EditForm Model="Model" OnValidSubmit="HandleLogin">
+
+                        <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Email Address
+                        </label>
+
+                        <InputText class="form-control"
+                                   @bind-Value="Model.Email"
+                                   placeholder="you@example.com" />
+
+                        <ValidationMessage For="() => Model.Email" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            Password
+                        </label>
+
+                        <InputText type="password"
+                                   class="form-control"
+                                   @bind-Value="Model.Password"
+                                   placeholder="Enter your password" />
+
+                        <ValidationMessage For="() => Model.Password" />
+                    </div>
+
+                    <button type="submit"
+                            class="btn btn-pizzapp-primary w-100 py-2">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>
+                        Sign In
+                    </button>
+
+                </EditForm>
+
+                <div class="text-center mt-4">
+
+                    <span class="text-muted">
+                        Don't have an account?
+                    </span>
+
+                    <NavLink href="register"
+                             class="fw-semibold text-danger text-decoration-none ms-1">
+                        Create Account
+                    </NavLink>
+
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="small text-muted text-center">
+                    <div class="fw-semibold mb-2">
+                        Demo Customer Account
+                    </div>
+
+                    <div>
+                        customer@pizzapp.com
+                    </div>
+
+                    <div>
+                        Password: Customer123
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+
+private LoginModel Model { get; set; } = new();
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private void HandleLogin()
+    {
+        ErrorMessage = string.Empty;
+
+        if (UserState.Login(Model.Email, Model.Password))
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        ErrorMessage = "Invalid email or password. Please check your details and try again.";
+    }
+
+    private class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Email address is required.")]
+        [System.ComponentModel.DataAnnotations.EmailAddress(
+            ErrorMessage = "Please enter a valid email address.")]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(
+            ErrorMessage = "Password is required.")]
+        public string Password { get; set; } = string.Empty;
+    }
+}
