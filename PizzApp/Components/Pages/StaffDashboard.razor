@@ -1,6 +1,6 @@
 @page "/staff"
 @page "/staff/dashboard"
-@inject FrontendUserState UserState
+@attribute [Authorize(Roles = "Staff,Administrator")]
 
 <PageTitle>Staff Dashboard - PizzApp</PageTitle>
 
@@ -22,21 +22,6 @@
             </button>
         </div>
     </div>
-
-    @if (UserState.CurrentRole != "Staff" && UserState.CurrentRole != "Administrator")
-    {
-        <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-0 bg-light">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-exclamation-triangle text-warning fs-5"></i>
-                <span class="small">
-                    This is the Staff Dashboard view. In production, this view is restricted to employees.
-                </span>
-            </div>
-            <button class="btn btn-sm btn-outline-dark" @onclick='() => UserState.SetRole("Staff")'>
-                Switch to Staff Role
-            </button>
-        </div>
-    }
 
     <!-- Kitchen Stats Overview -->
     <div class="row g-3 mb-4">

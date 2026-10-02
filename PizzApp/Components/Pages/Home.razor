@@ -1,6 +1,4 @@
 @page "/"
-@implements IDisposable
-@inject FrontendUserState UserState
 
 <PageTitle>PizzApp - Fresh Pizza Built Your Way</PageTitle>
 
@@ -27,12 +25,18 @@
                 <a href="menu" class="btn btn-pizzapp-primary btn-lg shadow-sm">
                     <i class="bi bi-journal-text me-2"></i> View Our Menu
                 </a>
-                @if (UserState.CurrentRole == "Customer")
-                {
+                <AuthorizeView Roles="Customer,Administrator">
                     <a href="orders" class="btn btn-pizzapp-outline btn-lg">
                         <i class="bi bi-clock-history me-2"></i> Track Orders
                     </a>
-                }
+                </AuthorizeView>
+                <AuthorizeView>
+                    <NotAuthorized>
+                        <a href="login" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-box-arrow-in-right me-2"></i> Sign In / Register
+                        </a>
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
         </div>
 
@@ -43,15 +47,3 @@
         </div>
     </div>
 </div>
-
-@code {
-    protected override void OnInitialized()
-    {
-        UserState.OnChange += StateHasChanged;
-    }
-
-    public void Dispose()
-    {
-        UserState.OnChange -= StateHasChanged;
-    }
-}

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PizzApp.Models;
 
@@ -5,7 +6,10 @@ namespace PizzApp.Data;
 
 public static class DbInitializer
 {
-    public static async Task SeedAsync(PizzAppDbContext db)
+    public static async Task SeedAsync(
+        PizzAppDbContext db,
+        RoleManager<IdentityRole>? roleManager = null,
+        UserManager<ApplicationUser>? userManager = null)
     {
         await db.Database.MigrateAsync();
 
@@ -208,5 +212,56 @@ public static class DbInitializer
         }
 
         await db.SaveChangesAsync();
+
+        if (roleManager != null && userManager != null)
+        {
+            await SeedRolesAndUsersAsync(roleManager, userManager);
+        }
+    }
+
+    private static async Task SeedRolesAndUsersAsync(
+        RoleManager<IdentityRole> roleManager,
+        UserManager<ApplicationUser> userManager)
+    {
+        // 1. Seed Customer, Staff, and Administrator Roles
+        string[] roles = ["Administrator", "Staff", "Customer"];
+
+        foreach (var role in roles)
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                await roleManager.CreateAsync(new IdentityRole(role));
+            }
+        }
+
+        // 2. Seed Default Test Accounts for easy grading and testing
+        var defaultUsers = new (string Email, string Name, string Role, string Password, string? Address)[]
+        {
+            ("admin@pizzapp.com", "Jordan Administrator", "Administrator", "Admin123!", "100 Admin Way, Rexburg, ID 83440"),
+            ("staff@pizzapp.com", "Sam Kitchen Staff", "Staff", "Staff123!", "200 Kitchen Blvd, Rexburg, ID 83440"),
+            ("customer@pizzapp.com", "Alex Customer", "Customer", "Customer123!", "300 Customer Ln, Rexburg, ID 83440")
+        };
+
+        foreach (var (email, name, role, password, address) in defaultUsers)
+        {
+            var existingUser = await userManager.FindByEmailAsync(email);
+            if (existingUser == null)
+            {
+                var user = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    FullName = name,
+                    DeliveryAddress = address,
+                    EmailConfirmed = true
+                };
+
+                var createResult = await userManager.CreateAsync(user, password);
+                if (createResult.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(user, role);
+                }
+            }
+        }
     }
 }
