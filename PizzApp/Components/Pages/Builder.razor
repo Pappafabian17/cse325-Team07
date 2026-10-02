@@ -1,0 +1,609 @@
+@page "/builder"
+
+@using Microsoft.EntityFrameworkCore
+@using PizzApp.Data
+@using PizzApp.Models
+@using PizzApp.Services
+
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
+@inject CartService CartService
+@inject NavigationManager Navigation
+
+@attribute [Authorize(Roles = "Customer,Administrator")]
+
+<PageTitle>Build Your Own Pizza - PizzApp</PageTitle>
+
+<div class="container-xl py-4 py-md-5">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+        <div>
+            <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill fw-semibold mb-2">
+                🍕 Build Your Own
+            </span>
+
+            <h1 class="display-5 fw-bold mb-1">
+                @(IsEditing ? "Edit Your Pizza" : "Build Your Own Pizza")
+            </h1>
+
+            <p class="text-muted mb-0">
+                Choose your size, crust, sauce, cheese, and toppings.
+            </p>
+        </div>
+
+        <button type="button"
+                class="btn btn-outline-secondary"
+                @onclick="Cancel">
+            <i class="bi bi-arrow-left me-1"></i>
+            @(IsEditing ? "Back to Cart" : "Back to Menu")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <div class="alert alert-danger mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            @Error
+        </div>
+    }
+
+    <div class="row g-4">
+
+        <!-- Builder Controls -->
+        <div class="col-12 col-lg-8">
+
+            <!-- Size -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 builder-step-card">
+                <div class="d-flex align-items-start gap-3 mb-4">
+                    <span class="step-number">1</span>
+
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Choose a Size</h2>
+                        <p class="text-muted mb-0">
+                            Larger pizzas allow more toppings.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    @foreach (var size in PizzaRules.Sizes)
+                    {
+                        <div class="col-6 col-md-3">
+                            <button type="button"
+                                    class="size-choice @(Working.Size == size ? "selected" : "")"
+                                    @onclick="() => SelectSize(size)">
+
+                                <strong>@size</strong>
+
+                                <span>
+                                    @PizzaRules.BasePriceFor(size).ToString("C")
+                                </span>
+
+                                <small>
+                                    Up to @PizzaRules.MaxToppings(size) toppings
+                                </small>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Crust -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 builder-step-card">
+                <div class="d-flex align-items-start gap-3 mb-4">
+                    <span class="step-number">2</span>
+
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Choose a Crust</h2>
+                        <p class="text-muted mb-0">
+                            Crust choice is included in the base price.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    @foreach (var crust in CrustOptions)
+                    {
+                        <div class="col-6 col-md-4">
+                            <button type="button"
+                                    class="option-choice @(Working.Crust == crust ? "selected" : "")"
+                                    @onclick="() => Working.Crust = crust">
+                                @crust
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Sauce and Cheese -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 builder-step-card">
+                <div class="d-flex align-items-start gap-3 mb-4">
+                    <span class="step-number">3</span>
+
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Sauce & Cheese</h2>
+                        <p class="text-muted mb-0">
+                            Both are included in the base price.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold">
+                            Sauce
+                        </label>
+
+                        <select class="form-select"
+                                @bind="Working.Sauce">
+                            @foreach (var sauce in SauceOptions)
+                            {
+                                <option value="@sauce">@sauce</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fw-semibold">
+                            Cheese
+                        </label>
+
+                        <select class="form-select"
+                                @bind="Working.Cheese">
+                            @foreach (var cheese in CheeseOptions)
+                            {
+                                <option value="@cheese">@cheese</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toppings -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 builder-step-card">
+                <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-4">
+                    <div class="d-flex align-items-start gap-3">
+                        <span class="step-number">4</span>
+
+                        <div>
+                            <h2 class="h4 fw-bold mb-1">Choose Your Toppings</h2>
+
+                            <p class="text-muted mb-0">
+                                Each topping is priced individually.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="text-md-end">
+                        <span class="badge bg-danger-subtle text-danger fs-6">
+                            @Working.Toppings.Count /
+                            @PizzaRules.MaxToppings(Working.Size)
+                            selected
+                        </span>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(ToppingMessage))
+                {
+                    <div class="alert alert-warning py-2 mb-3" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        @ToppingMessage
+                    </div>
+                }
+
+                <div class="row g-3">
+                    @foreach (var topping in Toppings)
+                    {
+                        var selected =
+                            Working.Toppings.Any(
+                                selectedTopping =>
+                                    selectedTopping.Id == topping.Id);
+
+                        var limitReached =
+                            !selected &&
+                            Working.Toppings.Count >=
+                            PizzaRules.MaxToppings(Working.Size);
+
+                        <div class="col-6 col-md-4 col-xl-3">
+                            <button type="button"
+                                    class="topping-choice @(selected ? "selected" : "") @(!topping.IsAvailable ? "unavailable" : "")"
+                                    disabled="@(!topping.IsAvailable && !selected)"
+                                    @onclick="() => ToggleTopping(topping)">
+
+                                <img src="@topping.ImagePath"
+                                     alt=""
+                                     loading="lazy" />
+
+                                <strong>@topping.Name</strong>
+
+                                <span>
+                                    +@topping.Price.ToString("C")
+                                </span>
+
+                                @if (selected)
+                                {
+                                    <small class="text-success fw-semibold">
+                                        ✓ Selected
+                                    </small>
+                                }
+                                else if (limitReached)
+                                {
+                                    <small class="text-muted">
+                                        Limit reached
+                                    </small>
+                                }
+                                else if (!topping.IsAvailable)
+                                {
+                                    <small class="text-muted">
+                                        Unavailable
+                                    </small>
+                                }
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Quantity -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 builder-step-card">
+                <div class="d-flex align-items-start gap-3 mb-4">
+                    <span class="step-number">5</span>
+
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Quantity</h2>
+
+                        <p class="text-muted mb-0">
+                            Choose between 1 and 10 pizzas.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="quantity-picker">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            @onclick="DecreaseQuantity">
+                        <i class="bi bi-dash"></i>
+                    </button>
+
+                    <span class="fs-4 fw-bold px-3">
+                        @Working.Quantity
+                    </span>
+
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            @onclick="IncreaseQuantity">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Live Preview -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 builder-preview-card">
+
+                <div class="text-uppercase text-muted small fw-bold mb-2">
+                    Your Pizza
+                </div>
+
+                <div class="pizza-preview-wrapper mb-3">
+                    <CustomPizzaPreview
+                        ToppingNames="Working.Toppings.Select(topping => topping.Name)"
+                        AltText="Your custom pizza" />
+                </div>
+
+                <h2 class="h4 fw-bold mb-1">
+                    @Working.Size Custom Pizza
+                </h2>
+
+                <p class="text-muted small mb-2">
+                    @Working.Crust · @Working.Sauce · @Working.Cheese
+                </p>
+
+                @if (Working.Toppings.Count == 0)
+                {
+                    <p class="text-muted small">
+                        No toppings selected
+                    </p>
+                }
+                else
+                {
+                    <p class="text-muted small">
+                        @string.Join(
+                            ", ",
+                            Working.Toppings.Select(topping => topping.Name))
+                    </p>
+                }
+
+                <hr />
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Base pizza</span>
+                    <span>@Working.BasePrice.ToString("C")</span>
+                </div>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Toppings</span>
+                    <span>@Working.ToppingsTotal.ToString("C")</span>
+                </div>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Per pizza</span>
+                    <strong>@Working.UnitPrice.ToString("C")</strong>
+                </div>
+
+                <div class="d-flex justify-content-between fs-5 fw-bold border-top pt-3 mt-3 mb-4">
+                    <span>Total</span>
+                    <span class="text-danger">
+                        @Working.TotalPrice.ToString("C")
+                    </span>
+                </div>
+
+                <button type="button"
+                        class="btn btn-pizzapp-primary w-100 py-2"
+                        @onclick="Save">
+                    <i class="bi bi-cart-plus me-1"></i>
+                    @(IsEditing ? "Save Changes" : "Add to Cart")
+                </button>
+
+                @if (IsEditing)
+                {
+                    <button type="button"
+                            class="btn btn-outline-secondary w-100 py-2 mt-2"
+                            @onclick="Cancel">
+                        Cancel Changes
+                    </button>
+                }
+
+                <p class="text-muted small text-center mt-3 mb-0">
+                    Tax and delivery are calculated during checkout.
+                </p>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "edit")]
+    public string? EditId { get; set; }
+
+    private CartItem Working = new();
+
+    private List<Topping> Toppings = new();
+
+    private bool IsEditing;
+
+    private string? Error;
+    private string? ToppingMessage;
+
+    private static readonly string[] CrustOptions =
+    [
+        "Hand Tossed",
+        "Pan",
+        "New York",
+        "Deep Dish",
+        "Thin",
+        "Gluten Free"
+    ];
+
+    private static readonly string[] SauceOptions =
+    [
+        "Marinara",
+        "Traditional Tomato",
+        "Garlic White",
+        "BBQ",
+        "No Sauce"
+    ];
+
+    private static readonly string[] CheeseOptions =
+    [
+        "Mozzarella",
+        "Cheddar Blend",
+        "Four Cheese",
+        "No Cheese"
+    ];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db =
+            await DbFactory.CreateDbContextAsync();
+
+        Toppings = await db.Toppings
+            .AsNoTracking()
+            .OrderBy(topping => topping.Id)
+            .ToListAsync();
+
+        Error = null;
+
+        if (!string.IsNullOrWhiteSpace(EditId))
+        {
+            if (!Guid.TryParse(EditId, out var cartItemId))
+            {
+                Error = "The requested cart item could not be edited.";
+                CreateNewPizza();
+                return;
+            }
+
+            var existing =
+                CartService.GetItemCopy(cartItemId);
+
+            if (existing is null)
+            {
+                Error = "That pizza is no longer in your cart.";
+                CreateNewPizza();
+                return;
+            }
+
+            if (!existing.IsCustom)
+            {
+                Error = "Only custom pizzas can be edited in the pizza builder.";
+                CreateNewPizza();
+                return;
+            }
+
+            Working = existing;
+            IsEditing = true;
+
+            if (Working.BasePrice <= 0)
+            {
+                Working.BasePrice =
+                    PizzaRules.BasePriceFor(Working.Size);
+            }
+
+            return;
+        }
+
+        CreateNewPizza();
+    }
+
+    private void CreateNewPizza()
+    {
+        IsEditing = false;
+
+        Working = new CartItem
+        {
+            IsCustom = true,
+            PizzaId = 0,
+            PizzaName = "Custom",
+            ImagePath = "/images/builder/base-cheese.png",
+            Size = "Medium",
+            Crust = "Hand Tossed",
+            Sauce = "Marinara",
+            Cheese = "Mozzarella",
+            BasePrice = PizzaRules.BasePriceFor("Medium"),
+            Quantity = 1
+        };
+    }
+
+    private void SelectSize(string size)
+    {
+        Error = null;
+
+        var newLimit =
+            PizzaRules.MaxToppings(size);
+
+        if (Working.Toppings.Count > newLimit)
+        {
+            Error =
+                $"Remove toppings before changing to {size}. " +
+                $"{size} pizzas allow up to {newLimit} toppings.";
+
+            return;
+        }
+
+        Working.Size = size;
+        Working.BasePrice =
+            PizzaRules.BasePriceFor(size);
+    }
+
+    private void ToggleTopping(Topping topping)
+    {
+        Error = null;
+
+        var existing = Working.Toppings
+            .FirstOrDefault(item => item.Id == topping.Id);
+
+        if (existing is not null)
+        {
+            Working.Toppings.Remove(existing);
+            ToppingMessage = null;
+            return;
+        }
+
+        var maxToppings = PizzaRules.MaxToppings(Working.Size);
+
+        if (Working.Toppings.Count >= maxToppings)
+        {
+            ToppingMessage =
+                $"{Working.Size} pizzas allow up to {maxToppings} toppings.";
+
+            return;
+        }
+
+        Working.Toppings.Add(
+            new Topping
+            {
+                Id = topping.Id,
+                Name = topping.Name,
+                ImagePath = topping.ImagePath,
+                Price = topping.Price,
+                IsAvailable = topping.IsAvailable
+            });
+
+        ToppingMessage = null;
+    }
+
+    private void IncreaseQuantity()
+    {
+        if (Working.Quantity < 10)
+        {
+            Working.Quantity++;
+        }
+    }
+
+    private void DecreaseQuantity()
+    {
+        if (Working.Quantity > 1)
+        {
+            Working.Quantity--;
+        }
+    }
+
+    private void Save()
+    {
+        Error = null;
+
+        if (!PizzaRules.IsValidSize(Working.Size))
+        {
+            Error = "Choose a valid pizza size.";
+            return;
+        }
+
+        if (Working.Quantity is < 1 or > 10)
+        {
+            Error = "Quantity must be between 1 and 10.";
+            return;
+        }
+
+        if (Working.Toppings.Count >
+            PizzaRules.MaxToppings(Working.Size))
+        {
+            Error =
+                $"{Working.Size} pizzas allow up to " +
+                $"{PizzaRules.MaxToppings(Working.Size)} toppings.";
+
+            return;
+        }
+
+        Working.BasePrice =
+            PizzaRules.BasePriceFor(Working.Size);
+
+        if (IsEditing)
+        {
+            if (!CartService.ReplaceItem(
+                    Working.CartItemId,
+                    Working))
+            {
+                Error =
+                    "That pizza is no longer in your cart.";
+
+                return;
+            }
+        }
+        else
+        {
+            CartService.AddItem(
+                Working.Copy());
+        }
+
+        Navigation.NavigateTo("/cart");
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo(
+            IsEditing ? "/cart" : "/menu");
+    }
+}

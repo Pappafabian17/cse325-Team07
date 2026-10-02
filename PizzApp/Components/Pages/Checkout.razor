@@ -148,11 +148,22 @@
 
                                 <div class="d-flex align-items-center gap-3">
 
-                                    <img src="@item.ImagePath"
-                                         alt="@item.PizzaName"
-                                         class="rounded-3"
-                                         style="width: 55px; height: 55px; object-fit: contain;"
-                                         onerror="this.src='images/pizza-hero.png'" />
+                                    @if (item.IsCustom)
+                                    {
+                                        <div style="width: 90px; height: 90px; flex: 0 0 90px;">
+                                            <CustomPizzaPreview
+                                                ToppingNames="item.Toppings.Select(topping => topping.Name)"
+                                                AltText="@item.PizzaName" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <img src="@item.ImagePath"
+                                            alt="@item.PizzaName"
+                                            class="rounded-3"
+                                            style="width: 90px; height: 90px; object-fit: contain;"
+                                            onerror="this.src='images/pizza-hero.png'" />
+                                    }
 
                                     <div>
                                         <div class="fw-bold">

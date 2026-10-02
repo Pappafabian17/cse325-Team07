@@ -26,6 +26,51 @@
         </div>
     </div>
 
+    <!-- Build Your Own Pizza -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5 build-your-own-card">
+        <div class="row g-0 align-items-center">
+
+            <div class="col-12 col-md-4 text-center p-4 bg-light">
+                <img src="/images/builder/base-cheese.png"
+                    alt="Build your own pizza"
+                    class="img-fluid"
+                    style="max-height: 220px; object-fit: contain;" />
+            </div>
+
+            <div class="col-12 col-md-8">
+                <div class="card-body p-4 p-lg-5">
+
+                    <span class="badge bg-danger-subtle text-danger px-3 py-2 rounded-pill fw-semibold mb-3">
+                        🍕 Make It Your Way
+                    </span>
+
+                    <h2 class="h2 fw-bold mb-2">
+                        Build Your Own Pizza
+                    </h2>
+
+                    <p class="text-muted mb-3">
+                        Choose your size, crust, sauce, cheese, and favorite toppings.
+                        Watch your pizza come together as you build it.
+                    </p>
+
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        <span class="badge ingredient-pill">4 Sizes</span>
+                        <span class="badge ingredient-pill">14 Toppings</span>
+                        <span class="badge ingredient-pill">Live Pizza Preview</span>
+                    </div>
+
+                    <NavLink href="/builder"
+                            class="btn btn-pizzapp-primary px-4 py-2">
+                        <i class="bi bi-sliders me-1"></i>
+                        Build Your Pizza
+                    </NavLink>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
     <!-- Specialty Pizzas Responsive Grid -->
     <div class="row g-4">
         @foreach (var pizza in SpecialtyPizzas)

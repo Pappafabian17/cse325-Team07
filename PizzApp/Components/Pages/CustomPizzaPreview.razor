@@ -1,0 +1,92 @@
+<div class="custom-pizza-preview @CssClass">
+    <img class="custom-pizza-base"
+         src="/images/builder/base-cheese.png"
+         alt="@AltText" />
+
+    @foreach (var toppingName in ToppingNames ?? Enumerable.Empty<string>())
+    {
+        if (TryGetOverlay(toppingName, out var imagePath))
+        {
+            <img class="custom-pizza-overlay @GetOverlayCssClass(toppingName)"
+                src="@imagePath"
+                alt=""
+                aria-hidden="true" />
+                    }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IEnumerable<string>? ToppingNames { get; set; }
+
+    [Parameter]
+    public string CssClass { get; set; } = string.Empty;
+
+    [Parameter]
+    public string AltText { get; set; } = "Custom pizza";
+
+    private static string GetOverlayCssClass(string toppingName) => toppingName switch
+    {
+        "Bacon" => "overlay-bacon",
+        "Italian Sausage" => "overlay-sausage",
+        "Black Olives" => "overlay-olives",
+        "Jalapeños" => "overlay-jalapenos",
+        "Mushrooms" => "overlay-mushrooms",
+        "Spinach" => "overlay-spinach",
+        "Extra Cheese" => "overlay-extra-cheese",
+        _ => string.Empty
+    };
+
+    private static readonly Dictionary<string, string> Overlays =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Pepperoni"] =
+                "/images/builder/overlays/pepperoni.png",
+
+            ["Black Olives"] =
+                "/images/builder/overlays/olives.png",
+
+            ["Italian Sausage"] =
+                "/images/builder/overlays/sausage.png",
+
+            ["Bacon"] =
+                "/images/builder/overlays/bacon.png",
+
+            ["Chicken"] =
+                "/images/builder/overlays/chicken.png",
+
+            ["Green Peppers"] =
+                "/images/builder/overlays/green-peppers.png",
+
+            ["Ham"] =
+                "/images/builder/overlays/ham.png",
+
+            ["Jalapeños"] =
+                "/images/builder/overlays/jalapenos.png",
+
+            ["Mushrooms"] =
+                "/images/builder/overlays/mushroom.png",
+
+            ["Onions"] =
+                "/images/builder/overlays/onions.png",
+
+            ["Pineapple"] =
+                "/images/builder/overlays/pineapple.png",
+
+            ["Spinach"] =
+                "/images/builder/overlays/spinach.png",
+
+            ["Tomatoes"] =
+                "/images/builder/overlays/tomato.png",
+
+            ["Extra Cheese"] =
+                "/images/builder/overlays/extra-cheese.png"
+        };
+
+    private static bool TryGetOverlay(
+        string toppingName,
+        out string imagePath)
+    {
+        return Overlays.TryGetValue(toppingName, out imagePath!);
+    }
+}
