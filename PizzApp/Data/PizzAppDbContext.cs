@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PizzApp.Models;
 
 namespace PizzApp.Data;
 
-public class PizzAppDbContext : DbContext
+public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
 {
     public PizzAppDbContext(DbContextOptions<PizzAppDbContext> options)
         : base(options)

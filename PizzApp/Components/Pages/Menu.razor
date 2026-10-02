@@ -1,7 +1,11 @@
 @page "/menu"
 @using Microsoft.EntityFrameworkCore
 @using PizzApp.Data
+@using PizzApp.Models
+@using PizzApp.Services
 @inject IDbContextFactory<PizzAppDbContext> DbFactory
+@inject CartService CartService
+@inject NavigationManager Navigation
 
 <PageTitle>Menu - PizzApp</PageTitle>
 
@@ -30,9 +34,9 @@
                 <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden pizza-card">
                     <!-- Static Pizza Image -->
                     <div class="position-relative bg-light text-center p-3 pizza-img-container">
-                        <img src="@pizza.ImagePath" 
-                             alt="@pizza.Name Pizza" 
-                             class="img-fluid pizza-card-img" 
+                        <img src="@pizza.ImagePath"
+                             alt="@pizza.Name Pizza"
+                             class="img-fluid pizza-card-img"
                              onerror="this.src='images/pizza-hero.png'" />
                         @if (!pizza.IsAvailable)
                         {
@@ -70,9 +74,11 @@
                                 <span>XL: <strong>$@pizza.XLargePrice.ToString("F2")</strong></span>
                             </div>
 
-                            <NavLink href="cart" class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2">
+                            <button type="button"
+                                    class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2"
+                                    @onclick="() => AddToCart(pizza)">
                                 <i class="bi bi-cart-plus"></i> Order Now
-                            </NavLink>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -205,5 +211,22 @@
         return IngredientsByPizza.TryGetValue(pizzaName, out var ingredients)
             ? ingredients
             : Array.Empty<string>();
+    }
+
+    private void AddToCart(SpecialtyPizza pizza)
+    {
+        var cartItem = new CartItem
+        {
+            PizzaId = pizza.Id,
+            PizzaName = pizza.Name,
+            ImagePath = pizza.ImagePath,
+            Size = "Small",
+            BasePrice = pizza.SmallPrice,
+            Quantity = 1
+        };
+
+        CartService.AddItem(cartItem);
+
+        Navigation.NavigateTo("/cart");
     }
 }
