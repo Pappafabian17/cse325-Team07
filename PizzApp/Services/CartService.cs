@@ -35,6 +35,34 @@ public class CartService
         NotifyStateChanged();
     }
 
+    public CartItem? GetItemCopy(Guid cartItemId)
+    {
+        var item = _items.FirstOrDefault(
+            item => item.CartItemId == cartItemId);
+
+        return item?.Copy();
+    }
+
+    public bool ReplaceItem(Guid cartItemId, CartItem replacement)
+    {
+        var index = _items.FindIndex(
+            item => item.CartItemId == cartItemId);
+
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var storedItem = replacement.Copy();
+        storedItem.CartItemId = cartItemId;
+
+        _items[index] = storedItem;
+
+        NotifyStateChanged();
+
+        return true;
+    }
+
     public void RemoveItem(CartItem item)
     {
         _items.Remove(item);
