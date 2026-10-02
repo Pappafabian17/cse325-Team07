@@ -58,9 +58,9 @@
                                 Included Ingredients:
                             </span>
                             <div class="d-flex flex-wrap gap-1">
-                                @foreach (var ingredient in GetIngredients(pizza.Name))
+                                @foreach (var ingredient in pizza.Ingredients.OrderBy(ingredient => ingredient.SortOrder))
                                 {
-                                    <span class="badge ingredient-pill">@ingredient</span>
+                                    <span class="badge ingredient-pill">@ingredient.Name</span>
                                 }
                             </div>
                         </div>
@@ -131,87 +131,18 @@
 @code {
     private List<SpecialtyPizza> SpecialtyPizzas = new();
 
-    private static readonly Dictionary<string, string[]> IngredientsByPizza =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Cheese"] =
-            [
-                "Mozzarella",
-                "Marinara Sauce",
-                "Oregano",
-                "Parmesan"
-            ],
-            ["Pepperoni"] =
-            [
-                "Pepperoni",
-                "Mozzarella",
-                "Marinara Sauce"
-            ],
-            ["Sausage"] =
-            [
-                "Italian Sausage",
-                "Mozzarella",
-                "Marinara Sauce",
-                "Garlic"
-            ],
-            ["Hawaiian"] =
-            [
-                "Smoked Ham",
-                "Pineapple",
-                "Mozzarella",
-                "Marinara Sauce"
-            ],
-            ["Veggie"] =
-            [
-                "Mushrooms",
-                "Bell Peppers",
-                "Red Onions",
-                "Black Olives",
-                "Mozzarella"
-            ],
-            ["Meat Lovers"] =
-            [
-                "Pepperoni",
-                "Italian Sausage",
-                "Smoked Bacon",
-                "Ham",
-                "Mozzarella"
-            ],
-            ["Supreme"] =
-            [
-                "Pepperoni",
-                "Italian Sausage",
-                "Mushrooms",
-                "Bell Peppers",
-                "Onions"
-            ],
-            ["House Special"] =
-            [
-                "Grilled Chicken",
-                "Smoked Bacon",
-                "Garlic Butter",
-                "Red Onions",
-                "Mozzarella"
-            ]
-        };
-
     protected override async Task OnInitializedAsync()
     {
         await using var db =
             await DbFactory.CreateDbContextAsync();
 
         SpecialtyPizzas = await db.SpecialtyPizzas
+            .Include(pizza => pizza.Ingredients)
             .AsNoTracking()
             .OrderBy(pizza => pizza.Id)
             .ToListAsync();
     }
 
-    private static IEnumerable<string> GetIngredients(string pizzaName)
-    {
-        return IngredientsByPizza.TryGetValue(pizzaName, out var ingredients)
-            ? ingredients
-            : Array.Empty<string>();
-    }
 
     private void AddToCart(SpecialtyPizza pizza)
     {
