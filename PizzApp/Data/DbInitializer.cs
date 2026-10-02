@@ -213,10 +213,94 @@ public static class DbInitializer
 
         await db.SaveChangesAsync();
 
+        if (!await db.SpecialtyPizzaIngredients.AnyAsync())
+        {
+            var pizzas = await db.SpecialtyPizzas
+                .ToDictionaryAsync(pizza => pizza.Name);
+
+            var ingredients = new List<SpecialtyPizzaIngredient>();
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Cheese"],
+                "Mozzarella",
+                "Marinara Sauce",
+                "Oregano",
+                "Parmesan"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Pepperoni"],
+                "Pepperoni",
+                "Mozzarella",
+                "Marinara Sauce"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Sausage"],
+                "Italian Sausage",
+                "Mozzarella",
+                "Marinara Sauce",
+                "Garlic"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Hawaiian"],
+                "Smoked Ham",
+                "Pineapple",
+                "Mozzarella",
+                "Marinara Sauce"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Veggie"],
+                "Mushrooms",
+                "Bell Peppers",
+                "Red Onions",
+                "Black Olives",
+                "Mozzarella"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Meat Lovers"],
+                "Pepperoni",
+                "Italian Sausage",
+                "Smoked Bacon",
+                "Ham",
+                "Mozzarella"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Supreme"],
+                "Pepperoni",
+                "Italian Sausage",
+                "Mushrooms",
+                "Bell Peppers",
+                "Onions"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["House Special"],
+                "Grilled Chicken",
+                "Smoked Bacon",
+                "Garlic Butter",
+                "Red Onions",
+                "Mozzarella"));
+
+            db.SpecialtyPizzaIngredients.AddRange(ingredients);
+
+            await db.SaveChangesAsync();
+        }
+
         if (roleManager != null && userManager != null)
         {
             await SeedRolesAndUsersAsync(roleManager, userManager);
         }
+    }
+
+    private static IEnumerable<SpecialtyPizzaIngredient> CreateIngredients(
+        SpecialtyPizza pizza,
+        params string[] ingredientNames)
+    {
+        return ingredientNames.Select((name, index) =>
+            new SpecialtyPizzaIngredient
+            {
+                SpecialtyPizzaId = pizza.Id,
+                Name = name,
+                SortOrder = index + 1
+            });
     }
 
     private static async Task SeedRolesAndUsersAsync(

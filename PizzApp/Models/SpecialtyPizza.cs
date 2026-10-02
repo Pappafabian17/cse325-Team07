@@ -19,4 +19,5 @@ public class SpecialtyPizza
     public decimal XLargePrice { get; set; }
 
     public bool IsAvailable { get; set; } = true;
+    public List<SpecialtyPizzaIngredient> Ingredients { get; set; } = new();
 }
