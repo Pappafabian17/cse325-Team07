@@ -15,6 +15,9 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<Topping> Toppings => Set<Topping>();
 
+    public DbSet<SpecialtyPizzaIngredient> SpecialtyPizzaIngredients =>
+    Set<SpecialtyPizzaIngredient>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -35,6 +38,20 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(pizza => pizza.XLargePrice)
                 .HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<SpecialtyPizzaIngredient>(entity =>
+        {
+            entity.HasOne(ingredient => ingredient.SpecialtyPizza)
+                .WithMany(pizza => pizza.Ingredients)
+                .HasForeignKey(ingredient => ingredient.SpecialtyPizzaId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(ingredient => new
+            {
+                ingredient.SpecialtyPizzaId,
+                ingredient.SortOrder
+            });
         });
 
         modelBuilder.Entity<Topping>(entity =>

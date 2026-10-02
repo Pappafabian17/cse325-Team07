@@ -19,89 +19,89 @@ public static class DbInitializer
                 new SpecialtyPizza
                 {
                     Name = "Cheese",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "Classic favorite with our rich tomato marinara and golden bubbly mozzarella.",
                     ImagePath = "images/pizzas/cheese.png",
                     SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    MediumPrice = 14.50m,
+                    LargePrice = 17.00m,
+                    XLargePrice = 19.50m,
                     IsAvailable = true
                 },
                 new SpecialtyPizza
                 {
                     Name = "Pepperoni",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "Loaded edge-to-edge with savory, crispy-cupping pepperoni slices.",
                     ImagePath = "images/pizzas/pep.png",
-                    SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    SmallPrice = 13.50m,
+                    MediumPrice = 16.00m,
+                    LargePrice = 18.50m,
+                    XLargePrice = 21.00m,
                     IsAvailable = true
                 },
                 new SpecialtyPizza
                 {
                     Name = "Sausage",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "Savory Italian pork sausage blended with roasted garlic and Italian seasonings.",
                     ImagePath = "images/pizzas/sausage.png",
-                    SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    SmallPrice = 13.50m,
+                    MediumPrice = 16.00m,
+                    LargePrice = 18.50m,
+                    XLargePrice = 21.00m,
                     IsAvailable = true
                 },
                 new SpecialtyPizza
                 {
                     Name = "Hawaiian",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "Sweet pineapple tidbits and savory smoked Canadian ham over melted cheese.",
                     ImagePath = "images/pizzas/hawaiian.png",
-                    SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    SmallPrice = 14.50m,
+                    MediumPrice = 17.00m,
+                    LargePrice = 19.50m,
+                    XLargePrice = 22.00m,
                     IsAvailable = true
                 },
                 new SpecialtyPizza
                 {
                     Name = "Veggie",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "Crisp bell peppers, red onions, earthy mushrooms, and ripe black olives.",
                     ImagePath = "images/pizzas/veggie.png",
-                    SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    SmallPrice = 14.00m,
+                    MediumPrice = 16.50m,
+                    LargePrice = 19.00m,
+                    XLargePrice = 21.50m,
                     IsAvailable = true
                 },
                 new SpecialtyPizza
                 {
                     Name = "Meat Lovers",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "A hearty carnivore blend of pepperoni, Italian sausage, bacon, and ham.",
                     ImagePath = "images/pizzas/meat.png",
-                    SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    SmallPrice = 16.00m,
+                    MediumPrice = 19.00m,
+                    LargePrice = 22.00m,
+                    XLargePrice = 25.00m,
                     IsAvailable = true
                 },
                 new SpecialtyPizza
                 {
                     Name = "Supreme",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "The ultimate combination of meats, garden fresh veggies, and melted cheeses.",
                     ImagePath = "images/pizzas/supreme.png",
-                    SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    SmallPrice = 16.00m,
+                    MediumPrice = 19.00m,
+                    LargePrice = 22.00m,
+                    XLargePrice = 25.00m,
                     IsAvailable = true
                 },
                 new SpecialtyPizza
                 {
                     Name = "House Special",
-                    Description = "Pricing and recipe details to be finalized.",
+                    Description = "Chef's specialty with garlic butter crust, tender grilled chicken, bacon, and herbs.",
                     ImagePath = "images/pizzas/house.png",
-                    SmallPrice = 12.00m,
-                    MediumPrice = 12.00m,
-                    LargePrice = 12.00m,
-                    XLargePrice = 12.00m,
+                    SmallPrice = 16.50m,
+                    MediumPrice = 19.50m,
+                    LargePrice = 22.50m,
+                    XLargePrice = 25.50m,
                     IsAvailable = true
                 }
             );
@@ -213,10 +213,94 @@ public static class DbInitializer
 
         await db.SaveChangesAsync();
 
+        if (!await db.SpecialtyPizzaIngredients.AnyAsync())
+        {
+            var pizzas = await db.SpecialtyPizzas
+                .ToDictionaryAsync(pizza => pizza.Name);
+
+            var ingredients = new List<SpecialtyPizzaIngredient>();
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Cheese"],
+                "Mozzarella",
+                "Marinara Sauce",
+                "Oregano",
+                "Parmesan"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Pepperoni"],
+                "Pepperoni",
+                "Mozzarella",
+                "Marinara Sauce"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Sausage"],
+                "Italian Sausage",
+                "Mozzarella",
+                "Marinara Sauce",
+                "Garlic"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Hawaiian"],
+                "Smoked Ham",
+                "Pineapple",
+                "Mozzarella",
+                "Marinara Sauce"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Veggie"],
+                "Mushrooms",
+                "Bell Peppers",
+                "Red Onions",
+                "Black Olives",
+                "Mozzarella"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Meat Lovers"],
+                "Pepperoni",
+                "Italian Sausage",
+                "Smoked Bacon",
+                "Ham",
+                "Mozzarella"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["Supreme"],
+                "Pepperoni",
+                "Italian Sausage",
+                "Mushrooms",
+                "Bell Peppers",
+                "Onions"));
+
+            ingredients.AddRange(CreateIngredients(
+                pizzas["House Special"],
+                "Grilled Chicken",
+                "Smoked Bacon",
+                "Garlic Butter",
+                "Red Onions",
+                "Mozzarella"));
+
+            db.SpecialtyPizzaIngredients.AddRange(ingredients);
+
+            await db.SaveChangesAsync();
+        }
+
         if (roleManager != null && userManager != null)
         {
             await SeedRolesAndUsersAsync(roleManager, userManager);
         }
+    }
+
+    private static IEnumerable<SpecialtyPizzaIngredient> CreateIngredients(
+        SpecialtyPizza pizza,
+        params string[] ingredientNames)
+    {
+        return ingredientNames.Select((name, index) =>
+            new SpecialtyPizzaIngredient
+            {
+                SpecialtyPizzaId = pizza.Id,
+                Name = name,
+                SortOrder = index + 1
+            });
     }
 
     private static async Task SeedRolesAndUsersAsync(

@@ -1,6 +1,9 @@
 @page "/menu"
+@using Microsoft.EntityFrameworkCore
+@using PizzApp.Data
 @using PizzApp.Models
 @using PizzApp.Services
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
 @inject CartService CartService
 @inject NavigationManager Navigation
 
@@ -31,9 +34,9 @@
                 <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden pizza-card">
                     <!-- Static Pizza Image -->
                     <div class="position-relative bg-light text-center p-3 pizza-img-container">
-                        <img src="@pizza.ImagePath" 
-                             alt="@pizza.Name Pizza" 
-                             class="img-fluid pizza-card-img" 
+                        <img src="@pizza.ImagePath"
+                             alt="@pizza.Name Pizza"
+                             class="img-fluid pizza-card-img"
                              onerror="this.src='images/pizza-hero.png'" />
                         @if (!pizza.IsAvailable)
                         {
@@ -55,9 +58,9 @@
                                 Included Ingredients:
                             </span>
                             <div class="d-flex flex-wrap gap-1">
-                                @foreach (var ingredient in pizza.Ingredients)
+                                @foreach (var ingredient in pizza.Ingredients.OrderBy(ingredient => ingredient.SortOrder))
                                 {
-                                    <span class="badge ingredient-pill">@ingredient</span>
+                                    <span class="badge ingredient-pill">@ingredient.Name</span>
                                 }
                             </div>
                         </div>
@@ -72,10 +75,10 @@
                             </div>
 
                             <button type="button"
-                             class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2"
-                              @onclick="() => AddToCart(pizza)">
-                              <i class="bi bi-cart-plus"></i> Order Now
-                               </button>
+                                    class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2"
+                                    @onclick="() => AddToCart(pizza)">
+                                <i class="bi bi-cart-plus"></i> Order Now
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -126,83 +129,26 @@
 </style>
 
 @code {
-    private record PizzaItem(
-        string Name,
-        string Description,
-        string ImagePath,
-        string[] Ingredients,
-        decimal SmallPrice,
-        decimal MediumPrice,
-        decimal LargePrice,
-        decimal XLargePrice,
-        bool IsAvailable = true
-    );
+    private List<SpecialtyPizza> SpecialtyPizzas = new();
 
-    private static readonly List<PizzaItem> SpecialtyPizzas = new()
+    protected override async Task OnInitializedAsync()
     {
-        new(
-            "Cheese",
-            "Classic favorite with our rich tomato marinara and golden bubbly mozzarella.",
-            "images/pizzas/cheese.png",
-            new[] { "Mozzarella", "Marinara Sauce", "Oregano", "Parmesan" },
-            12.00m, 14.50m, 17.00m, 19.50m
-        ),
-        new(
-            "Pepperoni",
-            "Loaded edge-to-edge with savory, crispy-cupping pepperoni slices.",
-            "images/pizzas/pep.png",
-            new[] { "Pepperoni", "Mozzarella", "Marinara Sauce" },
-            13.50m, 16.00m, 18.50m, 21.00m
-        ),
-        new(
-            "Sausage",
-            "Savory Italian pork sausage blended with roasted garlic and Italian seasonings.",
-            "images/pizzas/sausage.png",
-            new[] { "Italian Sausage", "Mozzarella", "Marinara Sauce", "Garlic" },
-            13.50m, 16.00m, 18.50m, 21.00m
-        ),
-        new(
-            "Hawaiian",
-            "Sweet pineapple tidbits and savory smoked Canadian ham over melted cheese.",
-            "images/pizzas/hawaiian.png",
-            new[] { "Smoked Ham", "Pineapple", "Mozzarella", "Marinara Sauce" },
-            14.50m, 17.00m, 19.50m, 22.00m
-        ),
-        new(
-            "Veggie",
-            "Crisp bell peppers, red onions, earthy mushrooms, and ripe black olives.",
-            "images/pizzas/veggie.png",
-            new[] { "Mushrooms", "Bell Peppers", "Red Onions", "Black Olives", "Mozzarella" },
-            14.00m, 16.50m, 19.00m, 21.50m
-        ),
-        new(
-            "Meat Lovers",
-            "A hearty carnivore blend of pepperoni, Italian sausage, bacon, and ham.",
-            "images/pizzas/meat.png",
-            new[] { "Pepperoni", "Italian Sausage", "Smoked Bacon", "Ham", "Mozzarella" },
-            16.00m, 19.00m, 22.00m, 25.00m
-        ),
-        new(
-            "Supreme",
-            "The ultimate combination of meats, garden fresh veggies, and melted cheeses.",
-            "images/pizzas/supreme.png",
-            new[] { "Pepperoni", "Italian Sausage", "Mushrooms", "Bell Peppers", "Onions" },
-            16.00m, 19.00m, 22.00m, 25.00m
-        ),
-        new(
-            "House Special",
-            "Chef's specialty with garlic butter crust, tender grilled chicken, bacon, and herbs.",
-            "images/pizzas/house.png",
-            new[] { "Grilled Chicken", "Smoked Bacon", "Garlic Butter", "Red Onions", "Mozzarella" },
-            16.50m, 19.50m, 22.50m, 25.50m
-        )
-    };
+        await using var db =
+            await DbFactory.CreateDbContextAsync();
 
-    private void AddToCart(PizzaItem pizza)
+        SpecialtyPizzas = await db.SpecialtyPizzas
+            .Include(pizza => pizza.Ingredients)
+            .AsNoTracking()
+            .OrderBy(pizza => pizza.Id)
+            .ToListAsync();
+    }
+
+
+    private void AddToCart(SpecialtyPizza pizza)
     {
         var cartItem = new CartItem
         {
-            PizzaId = SpecialtyPizzas.IndexOf(pizza) + 1,
+            PizzaId = pizza.Id,
             PizzaName = pizza.Name,
             ImagePath = pizza.ImagePath,
             Size = "Small",
