@@ -2,10 +2,9 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
 WORKDIR /src
 
-COPY PizzApp/PizzApp.csproj PizzApp/
-RUN dotnet restore PizzApp/PizzApp.csproj
-
 COPY . .
+
+RUN dotnet restore PizzApp/PizzApp.csproj
 
 RUN dotnet publish PizzApp/PizzApp.csproj \
     -c Release \
