@@ -1,164 +1,671 @@
 @page "/staff"
 @page "/staff/dashboard"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using PizzApp.Data
+@using PizzApp.Models
+
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
+
 @attribute [Authorize(Roles = "Staff,Administrator")]
+
+@implements IAsyncDisposable
 
 <PageTitle>Staff Dashboard - PizzApp</PageTitle>
 
 <div class="container-xl py-4 py-md-5">
+
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="role-badge role-badge-staff">Staff Portal</span>
-                <span class="text-muted small">&bull; Kitchen Display System (KDS)</span>
+                <span class="role-badge role-badge-staff">
+                    Staff Portal
+                </span>
+
+                <span class="text-muted small">
+                    &bull; Kitchen Display System (KDS)
+                </span>
             </div>
-            <h1 class="h2 fw-bold mb-0">Active Orders Dashboard</h1>
+
+            <h1 class="h2 fw-bold mb-0">
+                Active Orders Dashboard
+            </h1>
         </div>
+
         <div class="d-flex align-items-center gap-2">
+
             <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">
-                <i class="bi bi-circle-fill me-1" style="font-size: 0.6rem;"></i> Live Syncing
+                <i class="bi bi-circle-fill me-1"
+                   style="font-size: 0.6rem;"></i>
+                Live Syncing
             </span>
-            <button class="btn btn-outline-secondary btn-sm" @onclick="RefreshOrders">
-                <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+
+            <button class="btn btn-outline-secondary btn-sm"
+                    @onclick="RefreshOrders"
+                    disabled="@_isLoading">
+                <i class="bi bi-arrow-clockwise me-1"></i>
+                Refresh
             </button>
+
         </div>
+
     </div>
 
-    <!-- Kitchen Stats Overview -->
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @_errorMessage
+        </div>
+    }
+
+    <!-- Kitchen Stats -->
     <div class="row g-3 mb-4">
+
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white text-center">
-                <span class="text-muted small">Pending Prep</span>
-                <span class="fs-3 fw-bold text-danger">3</span>
+                <span class="text-muted small">
+                    Pending Prep
+                </span>
+
+                <span class="fs-3 fw-bold text-danger">
+                    @PendingCount
+                </span>
             </div>
         </div>
+
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white text-center">
-                <span class="text-muted small">In The Oven</span>
-                <span class="fs-3 fw-bold text-warning">4</span>
+                <span class="text-muted small">
+                    In The Oven
+                </span>
+
+                <span class="fs-3 fw-bold text-warning">
+                    @BakingCount
+                </span>
             </div>
         </div>
+
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white text-center">
-                <span class="text-muted small">Ready for Pickup</span>
-                <span class="fs-3 fw-bold text-success">2</span>
+                <span class="text-muted small">
+                    Ready
+                </span>
+
+                <span class="fs-3 fw-bold text-success">
+                    @ReadyCount
+                </span>
             </div>
         </div>
+
         <div class="col-6 col-md-3">
             <div class="card border-0 shadow-sm rounded-4 p-3 bg-white text-center">
-                <span class="text-muted small">Avg. Prep Time</span>
-                <span class="fs-3 fw-bold text-dark">14m</span>
+                <span class="text-muted small">
+                    Out for Delivery
+                </span>
+
+                <span class="fs-3 fw-bold text-dark">
+                    @OutForDeliveryCount
+                </span>
             </div>
         </div>
+
     </div>
 
-    <!-- Active Orders Kanban Grid -->
-    <div class="row g-4">
-        <!-- Order Card 1: Needs Prep -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-top border-4 border-danger">
-                <div class="card-body p-4 d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <span class="badge bg-danger-subtle text-danger mb-1">New Order &bull; 4m ago</span>
-                            <h5 class="fw-bold mb-0">#PA-98218</h5>
-                        </div>
-                        <span class="badge bg-light text-dark border">Delivery</span>
-                    </div>
+    @if (_isLoading && _activeOrders.Count == 0)
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
 
-                    <div class="mb-3 flex-grow-1">
-                        <h6 class="fw-semibold text-dark small mb-2 text-uppercase text-muted">Items to Prepare:</h6>
-                        <ul class="list-group list-group-flush small">
-                            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-                                <span><strong>1x</strong> XL Pepperoni (Hand Tossed)</span>
-                                <span class="text-muted">Crust: Thin</span>
-                            </li>
-                            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-                                <span><strong>1x</strong> Medium Hawaiian</span>
-                                <span class="text-muted">Extra Cheese</span>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div class="pt-3 border-top mt-auto">
-                        <button class="btn btn-warning w-100 fw-semibold text-dark">
-                            <i class="bi bi-fire me-1"></i> Send to Oven
-                        </button>
-                    </div>
-                </div>
+            <div class="spinner-border text-danger mx-auto mb-3"
+                 role="status">
             </div>
-        </div>
 
-        <!-- Order Card 2: Baking -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-top border-4 border-warning">
-                <div class="card-body p-4 d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <span class="badge bg-warning-subtle text-dark mb-1">Baking &bull; 8m in oven</span>
-                            <h5 class="fw-bold mb-0">#PA-98214</h5>
+            <p class="text-muted mb-0">
+                Loading active orders...
+            </p>
+
+        </div>
+    }
+    else if (_activeOrders.Count == 0)
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+
+            <i class="bi bi-check-circle display-4 text-success mb-3"></i>
+
+            <h2 class="h4 fw-bold">
+                All caught up
+            </h2>
+
+            <p class="text-muted mb-0">
+                There are no active orders right now.
+            </p>
+
+        </div>
+    }
+    else
+    {
+        <!-- Active Orders Grid -->
+        <div class="row g-4">
+
+            @foreach (var order in _activeOrders)
+            {
+                <div class="col-12 col-md-6 col-lg-4">
+
+                    <div class="@GetCardClass(order)">
+
+                        <div class="card-body p-4 d-flex flex-column">
+
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+
+                                <div>
+                                    <span class="@GetStatusBadgeClass(order)">
+                                        @GetStaffStatusLabel(order)
+                                        &bull;
+                                        @GetAgeText(order)
+                                    </span>
+
+                                    <h5 class="fw-bold mb-0 mt-1">
+                                        #@order.OrderNumber
+                                    </h5>
+                                </div>
+
+                                <span class="badge bg-light text-dark border">
+                                    @order.FulfillmentType
+                                </span>
+
+                            </div>
+
+                            <div class="mb-3 flex-grow-1">
+
+                                <h6 class="fw-semibold text-dark small mb-2 text-uppercase text-muted">
+                                    Items to Prepare:
+                                </h6>
+
+                                <ul class="list-group list-group-flush small">
+
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <li class="list-group-item px-0 py-2">
+
+                                            <div class="fw-semibold">
+                                                @item.Quantity×
+                                                @item.Size
+                                                @GetPizzaName(item)
+                                            </div>
+
+                                            @if (item.IsCustom)
+                                            {
+                                                <div class="text-muted mt-1">
+                                                    @item.Crust,
+                                                    @item.Sauce,
+                                                    @item.Cheese
+                                                </div>
+
+                                                @if (!string.IsNullOrWhiteSpace(item.Toppings))
+                                                {
+                                                    <div class="text-muted">
+                                                        Toppings:
+                                                        @item.Toppings
+                                                    </div>
+                                                }
+                                            }
+
+                                        </li>
+                                    }
+
+                                </ul>
+
+                                <div class="small text-muted border-top pt-3 mt-2">
+
+                                    <div>
+                                        <strong class="text-dark">
+                                            Customer:
+                                        </strong>
+
+                                        @order.CustomerName
+                                    </div>
+
+                                    @if (order.FulfillmentType == FulfillmentType.Delivery)
+                                    {
+                                        <div class="mt-1">
+                                            <strong class="text-dark">
+                                                Deliver to:
+                                            </strong>
+
+                                            @(order.DeliveryAddress ?? "Address unavailable")
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="mt-1">
+                                            <strong class="text-dark">
+                                                Pickup:
+                                            </strong>
+
+                                            PizzApp Store #1
+                                        </div>
+                                    }
+
+                                </div>
+
+                            </div>
+
+                            <div class="pt-3 border-top mt-auto">
+
+                                <button class="@GetActionButtonClass(order)"
+                                        @onclick="() => AdvanceOrderAsync(order)"
+                                        disabled="@_updatingOrderIds.Contains(order.Id)">
+
+                                    @if (_updatingOrderIds.Contains(order.Id))
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <span>Updating...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="@GetActionIcon(order) me-1"></i>
+                                        <span>@GetActionLabel(order)</span>
+                                    }
+
+                                </button>
+
+                            </div>
+
                         </div>
-                        <span class="badge bg-light text-dark border">Pickup</span>
+
                     </div>
 
-                    <div class="mb-3 flex-grow-1">
-                        <h6 class="fw-semibold text-dark small mb-2 text-uppercase text-muted">Items in Oven:</h6>
-                        <ul class="list-group list-group-flush small">
-                            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-                                <span><strong>2x</strong> Large Classic Cheese</span>
-                                <span class="text-muted">Well Done</span>
-                            </li>
-                            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-                                <span><strong>1x</strong> Garlic Knots (8pc)</span>
-                                <span class="text-muted">Side: Marinara</span>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div class="pt-3 border-top mt-auto">
-                        <button class="btn btn-success w-100 fw-semibold">
-                            <i class="bi bi-check2-circle me-1"></i> Mark as Ready
-                        </button>
-                    </div>
                 </div>
-            </div>
+            }
+
         </div>
+    }
 
-        <!-- Order Card 3: Ready for Delivery -->
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-top border-4 border-success">
-                <div class="card-body p-4 d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <span class="badge bg-success-subtle text-success mb-1">Ready for Driver</span>
-                            <h5 class="fw-bold mb-0">#PA-98210</h5>
-                        </div>
-                        <span class="badge bg-light text-dark border">Delivery</span>
-                    </div>
-
-                    <div class="mb-3 flex-grow-1">
-                        <h6 class="fw-semibold text-dark small mb-2 text-uppercase text-muted">Bagged & Boxed:</h6>
-                        <ul class="list-group list-group-flush small">
-                            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-                                <span><strong>1x</strong> Sausage & Pepperoni</span>
-                                <span class="text-success fw-bold">Boxed</span>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div class="pt-3 border-top mt-auto">
-                        <button class="btn btn-outline-dark w-100 fw-semibold">
-                            <i class="bi bi-box-arrow-up-right me-1"></i> Hand off to Driver
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 @code {
-    private void RefreshOrders()
+    private List<Order> _activeOrders = new();
+
+    private readonly HashSet<int> _updatingOrderIds = new();
+
+    private bool _isLoading = true;
+
+    private string _errorMessage = string.Empty;
+
+    private CancellationTokenSource? _refreshCancellation;
+
+    private Task? _refreshTask;
+
+    private int PendingCount =>
+        _activeOrders.Count(order =>
+            order.Status == OrderStatus.Received);
+
+    private int BakingCount =>
+        _activeOrders.Count(order =>
+            order.Status == OrderStatus.Baking);
+
+    private int ReadyCount =>
+        _activeOrders.Count(order =>
+            order.Status == OrderStatus.Ready);
+
+    private int OutForDeliveryCount =>
+        _activeOrders.Count(order =>
+            order.Status == OrderStatus.OutForDelivery);
+
+    protected override async Task OnInitializedAsync()
     {
-        StateHasChanged();
+        await LoadOrdersAsync();
+
+        _refreshCancellation =
+            new CancellationTokenSource();
+
+        _refreshTask =
+            RefreshOrdersPeriodicallyAsync(
+                _refreshCancellation.Token);
+    }
+
+    private async Task LoadOrdersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _isLoading = true;
+
+            await using var db =
+                await DbFactory.CreateDbContextAsync(
+                    cancellationToken);
+
+            _activeOrders = await db.Orders
+                .AsNoTracking()
+                .Include(order => order.Items)
+                .Where(order =>
+                    order.Status != OrderStatus.Completed &&
+                    order.Status != OrderStatus.Cancelled)
+                .OrderBy(order => order.PlacedAt)
+                .ToListAsync(cancellationToken);
+
+            _errorMessage = string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when leaving the page.
+        }
+        catch
+        {
+            _errorMessage =
+                "We couldn't load the active orders. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RefreshOrders()
+    {
+        await LoadOrdersAsync();
+    }
+
+    private async Task RefreshOrdersPeriodicallyAsync(
+        CancellationToken cancellationToken)
+    {
+        using var timer =
+            new PeriodicTimer(
+                TimeSpan.FromSeconds(10));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(
+                cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadOrdersAsync(
+                        cancellationToken);
+
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal when navigating away.
+        }
+    }
+
+    private async Task AdvanceOrderAsync(Order order)
+    {
+        if (!_updatingOrderIds.Add(order.Id))
+        {
+            return;
+        }
+
+        _errorMessage = string.Empty;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            var databaseOrder =
+                await db.Orders
+                    .FirstOrDefaultAsync(
+                        item => item.Id == order.Id);
+
+            if (databaseOrder is null)
+            {
+                _errorMessage =
+                    "That order could not be found.";
+
+                return;
+            }
+
+            var nextStatus =
+                GetNextStatus(databaseOrder);
+
+            if (nextStatus is null)
+            {
+                return;
+            }
+
+            databaseOrder.Status =
+                nextStatus.Value;
+
+            await db.SaveChangesAsync();
+
+            await LoadOrdersAsync();
+        }
+        catch
+        {
+            _errorMessage =
+                $"We couldn't update order #{order.OrderNumber}. Please try again.";
+        }
+        finally
+        {
+            _updatingOrderIds.Remove(order.Id);
+        }
+    }
+
+    private static OrderStatus? GetNextStatus(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received =>
+                OrderStatus.Baking,
+
+            OrderStatus.Baking =>
+                OrderStatus.Ready,
+
+            OrderStatus.Ready
+                when order.FulfillmentType == FulfillmentType.Delivery =>
+                OrderStatus.OutForDelivery,
+
+            OrderStatus.Ready
+                when order.FulfillmentType == FulfillmentType.Pickup =>
+                OrderStatus.Completed,
+
+            OrderStatus.OutForDelivery =>
+                OrderStatus.Completed,
+
+            _ => null
+        };
+    }
+
+    private static string GetStaffStatusLabel(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received =>
+                "New Order",
+
+            OrderStatus.Baking =>
+                "Baking",
+
+            OrderStatus.Ready
+                when order.FulfillmentType == FulfillmentType.Pickup =>
+                "Ready for Pickup",
+
+            OrderStatus.Ready =>
+                "Ready for Driver",
+
+            OrderStatus.OutForDelivery =>
+                "Out for Delivery",
+
+            _ => order.Status.ToString()
+        };
+    }
+
+    private static string GetActionLabel(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received =>
+                "Send to Oven",
+
+            OrderStatus.Baking =>
+                "Mark as Ready",
+
+            OrderStatus.Ready
+                when order.FulfillmentType == FulfillmentType.Pickup =>
+                "Mark Picked Up",
+
+            OrderStatus.Ready =>
+                "Hand off to Driver",
+
+            OrderStatus.OutForDelivery =>
+                "Mark Delivered",
+
+            _ => "Update Order"
+        };
+    }
+
+    private static string GetActionIcon(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received =>
+                "bi bi-fire",
+
+            OrderStatus.Baking =>
+                "bi bi-check2-circle",
+
+            OrderStatus.Ready
+                when order.FulfillmentType == FulfillmentType.Pickup =>
+                "bi bi-bag-check",
+
+            OrderStatus.Ready =>
+                "bi bi-box-arrow-up-right",
+
+            OrderStatus.OutForDelivery =>
+                "bi bi-house-check",
+
+            _ => "bi bi-arrow-right"
+        };
+    }
+
+    private static string GetActionButtonClass(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received =>
+                "btn btn-warning w-100 fw-semibold text-dark",
+
+            OrderStatus.Baking =>
+                "btn btn-success w-100 fw-semibold",
+
+            OrderStatus.Ready =>
+                "btn btn-outline-dark w-100 fw-semibold",
+
+            OrderStatus.OutForDelivery =>
+                "btn btn-pizzapp-primary w-100 fw-semibold",
+
+            _ =>
+                "btn btn-outline-secondary w-100 fw-semibold"
+        };
+    }
+
+    private static string GetCardClass(Order order)
+    {
+        var borderClass = order.Status switch
+        {
+            OrderStatus.Received =>
+                "border-danger",
+
+            OrderStatus.Baking =>
+                "border-warning",
+
+            OrderStatus.Ready =>
+                "border-success",
+
+            OrderStatus.OutForDelivery =>
+                "border-primary",
+
+            _ =>
+                "border-secondary"
+        };
+
+        return
+            $"card border-0 shadow-sm rounded-4 h-100 bg-white " +
+            $"border-top border-4 {borderClass}";
+    }
+
+    private static string GetStatusBadgeClass(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received =>
+                "badge bg-danger-subtle text-danger",
+
+            OrderStatus.Baking =>
+                "badge bg-warning-subtle text-dark",
+
+            OrderStatus.Ready =>
+                "badge bg-success-subtle text-success",
+
+            OrderStatus.OutForDelivery =>
+                "badge bg-primary-subtle text-primary",
+
+            _ =>
+                "badge bg-secondary-subtle text-secondary"
+        };
+    }
+
+    private static string GetAgeText(Order order)
+    {
+        var age =
+            DateTimeOffset.UtcNow -
+            order.PlacedAt;
+
+        if (age.TotalMinutes < 1)
+        {
+            return "just now";
+        }
+
+        if (age.TotalHours < 1)
+        {
+            return
+                $"{Math.Max(1, (int)age.TotalMinutes)}m ago";
+        }
+
+        if (age.TotalDays < 1)
+        {
+            return
+                $"{Math.Max(1, (int)age.TotalHours)}h ago";
+        }
+
+        return
+            $"{Math.Max(1, (int)age.TotalDays)}d ago";
+    }
+
+    private static string GetPizzaName(OrderItem item)
+    {
+        return item.PizzaName.EndsWith(
+            "Pizza",
+            StringComparison.OrdinalIgnoreCase)
+                ? item.PizzaName
+                : $"{item.PizzaName} Pizza";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_refreshCancellation is not null)
+        {
+            await _refreshCancellation.CancelAsync();
+        }
+
+        if (_refreshTask is not null)
+        {
+            try
+            {
+                await _refreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal shutdown.
+            }
+        }
+
+        _refreshCancellation?.Dispose();
     }
 }

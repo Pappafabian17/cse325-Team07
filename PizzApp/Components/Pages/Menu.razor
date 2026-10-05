@@ -119,11 +119,24 @@
                                 <span>XL: <strong>$@pizza.XLargePrice.ToString("F2")</strong></span>
                             </div>
 
-                            <button type="button"
-                                    class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2"
-                                    @onclick="() => AddToCart(pizza)">
-                                <i class="bi bi-cart-plus"></i> Order Now
-                            </button>
+                            @if (pizza.IsAvailable)
+                            {
+                                <button type="button"
+                                        class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2"
+                                        @onclick="() => AddToCart(pizza)">
+                                    <i class="bi bi-cart-plus"></i>
+                                    Order Now
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="button"
+                                        class="btn btn-secondary w-100 rounded-3 py-2"
+                                        disabled>
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Unavailable
+                                </button>
+                            }
                         </div>
                     </div>
                 </div>
@@ -191,6 +204,11 @@
 
     private void AddToCart(SpecialtyPizza pizza)
     {
+        if (!pizza.IsAvailable)
+        {
+            return;
+        }
+
         var cartItem = new CartItem
         {
             PizzaId = pizza.Id,
@@ -204,5 +222,5 @@
         CartService.AddItem(cartItem);
 
         Navigation.NavigateTo("/cart");
-    }
+}
 }

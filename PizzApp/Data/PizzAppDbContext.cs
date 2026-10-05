@@ -16,7 +16,11 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Topping> Toppings => Set<Topping>();
 
     public DbSet<SpecialtyPizzaIngredient> SpecialtyPizzaIngredients =>
-    Set<SpecialtyPizzaIngredient>();
+        Set<SpecialtyPizzaIngredient>();
+
+    public DbSet<Order> Orders => Set<Order>();
+
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,6 +65,52 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
 
             entity.Property(topping => topping.Price)
                 .HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<Order>(entity =>
+        {
+            entity.Property(order => order.FulfillmentType)
+                .HasConversion<string>();
+
+            entity.Property(order => order.Status)
+                .HasConversion<string>();
+
+            entity.Property(order => order.Subtotal)
+                .HasPrecision(10, 2);
+
+            entity.Property(order => order.Tax)
+                .HasPrecision(10, 2);
+
+            entity.Property(order => order.DeliveryFee)
+                .HasPrecision(10, 2);
+
+            entity.Property(order => order.Total)
+                .HasPrecision(10, 2);
+
+            entity.HasOne(order => order.Customer)
+                .WithMany()
+                .HasForeignKey(order => order.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(order => new
+            {
+                order.CustomerId,
+                order.PlacedAt
+            });
+        });
+
+        modelBuilder.Entity<OrderItem>(entity =>
+        {
+            entity.Property(item => item.UnitPrice)
+                .HasPrecision(10, 2);
+
+            entity.Property(item => item.TotalPrice)
+                .HasPrecision(10, 2);
+
+            entity.HasOne(item => item.Order)
+                .WithMany(order => order.Items)
+                .HasForeignKey(item => item.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

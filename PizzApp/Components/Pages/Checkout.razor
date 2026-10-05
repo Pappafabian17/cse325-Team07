@@ -1,11 +1,20 @@
 @page "/checkout"
 
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using PizzApp.Data
 @using PizzApp.Models
 @using PizzApp.Services
 
 @inject CartService CartService
 @inject NavigationManager Navigation
-@inject FrontendUserState UserState
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
+@inject ILogger<Checkout> Logger
+
+@attribute [Authorize(Roles = "Customer,Administrator")]
 
 <PageTitle>Checkout - PizzApp</PageTitle>
 
@@ -31,12 +40,26 @@
             </h2>
 
             <p class="text-muted mb-2">
-                Thank you for your order, @UserState.UserName.
+                Thank you for your order, @(_currentUser?.FullName ?? "Customer").
             </p>
 
-            <p class="text-muted">
-                Your order has been received and is being prepared.
+            <p class="fw-semibold mb-2">
+                Order #@PlacedOrderNumber
             </p>
+
+            @if (SelectedFulfillment == FulfillmentType.Pickup)
+            {
+                <p class="text-muted">
+                    Your order has been received and is being prepared for pickup at
+                    <strong>PizzApp Store #1</strong>.
+                </p>
+            }
+            else
+            {
+                <p class="text-muted">
+                    Your order has been received and is being prepared for delivery.
+                </p>
+            }
 
             <div class="alert alert-light border rounded-3 my-4">
                 <div class="fw-bold">Order Total</div>
@@ -104,31 +127,62 @@
                         </label>
 
                         <input class="form-control"
-                               value="@UserState.UserName"
+                               value="@(_currentUser?.FullName ?? string.Empty)"
                                readonly />
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label fw-semibold">
                             Email
                         </label>
 
                         <input class="form-control"
-                               value="@UserState.UserEmail"
+                               value="@(_currentUser?.Email ?? string.Empty)"
                                readonly />
                     </div>
 
-                    <div class="mb-0">
+                    <div class="mb-4">
                         <label class="form-label fw-semibold">
-                            Delivery Address
+                            Order Type
                         </label>
 
-                        <textarea class="form-control"
-                                  rows="3"
-                                  @bind="DeliveryAddress"
-                                  placeholder="Enter your delivery address">
-                        </textarea>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button"
+                                    class="btn @(SelectedFulfillment == FulfillmentType.Pickup ? "btn-pizzapp-primary" : "btn-outline-secondary")"
+                                    @onclick="() => SelectedFulfillment = FulfillmentType.Pickup">
+                                <i class="bi bi-shop me-1"></i>
+                                Pickup
+                            </button>
+
+                            <button type="button"
+                                    class="btn @(SelectedFulfillment == FulfillmentType.Delivery ? "btn-pizzapp-primary" : "btn-outline-secondary")"
+                                    @onclick="() => SelectedFulfillment = FulfillmentType.Delivery">
+                                <i class="bi bi-truck me-1"></i>
+                                Delivery
+                            </button>
+                        </div>
                     </div>
+
+                    @if (SelectedFulfillment == FulfillmentType.Delivery)
+                    {
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold">
+                                Delivery Address
+                            </label>
+
+                            <textarea class="form-control"
+                                      rows="3"
+                                      @bind="DeliveryAddress"
+                                      placeholder="Enter your delivery address"></textarea>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light border rounded-3 mb-0">
+                            <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                            <strong>Pickup at:</strong> PizzApp Store #1
+                        </div>
+                    }
 
                 </div>
 
@@ -159,10 +213,10 @@
                                     else
                                     {
                                         <img src="@item.ImagePath"
-                                            alt="@item.PizzaName"
-                                            class="rounded-3"
-                                            style="width: 90px; height: 90px; object-fit: contain;"
-                                            onerror="this.src='images/pizza-hero.png'" />
+                                             alt="@item.PizzaName"
+                                             class="rounded-3"
+                                             style="width: 90px; height: 90px; object-fit: contain;"
+                                             onerror="this.src='images/pizza-hero.png'" />
                                     }
 
                                     <div>
@@ -209,7 +263,7 @@
                     <div class="d-flex justify-content-between py-2 text-muted">
                         <span>Delivery Fee</span>
                         <span class="fw-semibold text-dark">
-                            $@CartService.DeliveryFee.ToString("0.00")
+                            $@SelectedDeliveryFee.ToString("0.00")
                         </span>
                     </div>
 
@@ -226,15 +280,31 @@
                         <span>Total</span>
 
                         <span class="text-danger">
-                            $@CartService.Total.ToString("0.00")
+                            $@CheckoutTotal.ToString("0.00")
                         </span>
                     </div>
 
+                    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            @ErrorMessage
+                        </div>
+                    }
+
                     <button type="button"
                             class="btn btn-pizzapp-primary w-100 py-2"
-                            @onclick="PlaceOrder">
-                        <i class="bi bi-check-circle me-1"></i>
-                        Place Order
+                            @onclick="PlaceOrder"
+                            disabled="@IsSubmitting">
+                        @if (IsSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Placing Order...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-circle me-1"></i>
+                            <span>Place Order</span>
+                        }
                     </button>
 
                     <NavLink href="cart"
@@ -258,24 +328,167 @@
 </div>
 
 @code {
+    private ApplicationUser? _currentUser;
 
     private string DeliveryAddress { get; set; } = string.Empty;
 
+    private FulfillmentType SelectedFulfillment { get; set; } =
+        FulfillmentType.Delivery;
+
     private bool OrderPlaced { get; set; }
+
+    private bool IsSubmitting { get; set; }
 
     private decimal OrderTotal { get; set; }
 
-    private void PlaceOrder()
+    private string PlacedOrderNumber { get; set; } = string.Empty;
+
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private decimal SelectedDeliveryFee =>
+        SelectedFulfillment == FulfillmentType.Delivery
+            ? CartService.DeliveryFee
+            : 0m;
+
+    private decimal CheckoutTotal =>
+        CartService.Subtotal +
+        CartService.Tax +
+        SelectedDeliveryFee;
+
+    protected override async Task OnInitializedAsync()
     {
-        if (string.IsNullOrWhiteSpace(DeliveryAddress))
+        var authenticationState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        var userId = authenticationState.User
+            .FindFirst(ClaimTypes.NameIdentifier)?
+            .Value;
+
+        if (string.IsNullOrWhiteSpace(userId))
         {
             return;
         }
 
-        OrderTotal = CartService.Total;
+        await using var db =
+            await DbFactory.CreateDbContextAsync();
 
-        CartService.Clear();
+        _currentUser = await db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user => user.Id == userId);
+    }
 
-        OrderPlaced = true;
+    private async Task PlaceOrder()
+    {
+        ErrorMessage = string.Empty;
+
+        if (IsSubmitting)
+        {
+            return;
+        }
+
+        if (_currentUser is null)
+        {
+            ErrorMessage =
+                "Your account information could not be loaded. Please sign in again.";
+            return;
+        }
+
+        if (CartService.Items.Count == 0)
+        {
+            ErrorMessage =
+                "Your cart is empty.";
+            return;
+        }
+
+        if (SelectedFulfillment == FulfillmentType.Delivery &&
+            string.IsNullOrWhiteSpace(DeliveryAddress))
+        {
+            ErrorMessage =
+                "Please enter a delivery address.";
+            return;
+        }
+
+        IsSubmitting = true;
+
+        try
+        {
+            var order = new Order
+            {
+                CustomerId = _currentUser.Id,
+                CustomerName = _currentUser.FullName,
+                CustomerEmail =
+                    _currentUser.Email ??
+                    _currentUser.UserName ??
+                    string.Empty,
+
+                FulfillmentType = SelectedFulfillment,
+
+                DeliveryAddress =
+                    SelectedFulfillment == FulfillmentType.Delivery
+                        ? DeliveryAddress.Trim()
+                        : null,
+
+                PlacedAt = DateTimeOffset.UtcNow,
+                Status = OrderStatus.Received,
+
+                Subtotal = CartService.Subtotal,
+                Tax = CartService.Tax,
+                DeliveryFee = SelectedDeliveryFee,
+                Total = CheckoutTotal,
+
+                Items = CartService.Items
+                    .Select(item => new OrderItem
+                    {
+                        SpecialtyPizzaId =
+                            !item.IsCustom && item.PizzaId > 0
+                                ? item.PizzaId
+                                : null,
+
+                        IsCustom = item.IsCustom,
+                        PizzaName = item.PizzaName,
+                        Size = item.Size,
+                        Crust = item.Crust,
+                        Sauce = item.Sauce,
+                        Cheese = item.Cheese,
+
+                        Toppings = string.Join(
+                            ", ",
+                            item.Toppings.Select(topping => topping.Name)),
+
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        TotalPrice = item.TotalPrice
+                    })
+                    .ToList()
+            };
+
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            db.Orders.Add(order);
+
+            await db.SaveChangesAsync();
+
+            OrderTotal = order.Total;
+            PlacedOrderNumber = order.OrderNumber;
+
+            CartService.Clear();
+
+            OrderPlaced = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "Failed to save order for customer {CustomerId}.",
+                _currentUser.Id);
+
+            ErrorMessage =
+                "We couldn't place your order. Your cart has been kept. Please try again.";
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
     }
 }

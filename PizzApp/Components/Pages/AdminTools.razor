@@ -2,6 +2,12 @@
 @page "/admin/tools"
 @attribute [Authorize(Roles = "Administrator")]
 
+@using Microsoft.EntityFrameworkCore
+@using PizzApp.Data
+@using PizzApp.Models
+
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
+
 <PageTitle>Admin Tools - PizzApp</PageTitle>
 
 <div class="container-xl py-4 py-md-5">
@@ -52,36 +58,94 @@
     <!-- 1. Sales Summary Section -->
     @if (_activeTab == "sales")
     {
-        <div class="row g-4 mb-4">
-            <div class="col-12 col-sm-6 col-lg-3">
-                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                    <span class="text-muted small fw-semibold text-uppercase">Today's Revenue</span>
-                    <span class="fs-2 fw-bold text-dark mt-2">$2,419.50</span>
-                    <span class="text-success small mt-1"><i class="bi bi-arrow-up"></i> +14% from yesterday</span>
+        @if (_isLoadingSales)
+        {
+            <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+                <div class="spinner-border text-danger mx-auto mb-3"
+                    role="status">
                 </div>
+
+                <p class="text-muted mb-0">
+                    Loading sales summary...
+                </p>
             </div>
-            <div class="col-12 col-sm-6 col-lg-3">
-                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                    <span class="text-muted small fw-semibold text-uppercase">Orders Placed</span>
-                    <span class="fs-2 fw-bold text-dark mt-2">128</span>
-                    <span class="text-success small mt-1"><i class="bi bi-arrow-up"></i> 8 active currently</span>
+        }
+        else if (!string.IsNullOrWhiteSpace(_salesError))
+        {
+            <div class="alert alert-danger" role="alert">
+                @_salesError
+            </div>
+        }
+        else
+        {
+            <div class="row g-4 mb-4">
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                        <span class="text-muted small fw-semibold text-uppercase">
+                            Today's Revenue
+                        </span>
+
+                        <span class="fs-2 fw-bold text-dark mt-2">
+                            $@_todayRevenue.ToString("N2")
+                        </span>
+
+                        <span class="text-muted small mt-1">
+                            From @_todayOrderCount order@(_todayOrderCount == 1 ? "" : "s")
+                        </span>
+                    </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-lg-3">
-                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                    <span class="text-muted small fw-semibold text-uppercase">Average Ticket</span>
-                    <span class="fs-2 fw-bold text-dark mt-2">$18.90</span>
-                    <span class="text-muted small mt-1">2.1 items / order</span>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                        <span class="text-muted small fw-semibold text-uppercase">
+                            Orders Placed
+                        </span>
+
+                        <span class="fs-2 fw-bold text-dark mt-2">
+                            @_todayOrderCount
+                        </span>
+
+                        <span class="text-muted small mt-1">
+                            @_activeOrderCount active currently
+                        </span>
+                    </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-lg-3">
-                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                    <span class="text-muted small fw-semibold text-uppercase">Top Pizza</span>
-                    <span class="fs-2 fw-bold text-danger mt-2">Pepperoni</span>
-                    <span class="text-muted small mt-1">54 sold today</span>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                        <span class="text-muted small fw-semibold text-uppercase">
+                            Average Ticket
+                        </span>
+
+                        <span class="fs-2 fw-bold text-dark mt-2">
+                            $@_averageTicket.ToString("N2")
+                        </span>
+
+                        <span class="text-muted small mt-1">
+                            @_averageItemsPerOrder.ToString("0.0") items / order
+                        </span>
+                    </div>
                 </div>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                        <span class="text-muted small fw-semibold text-uppercase">
+                            Top Pizza
+                        </span>
+
+                        <span class="fs-2 fw-bold text-danger mt-2">
+                            @_topPizzaName
+                        </span>
+
+                        <span class="text-muted small mt-1">
+                            @_topPizzaDetail
+                        </span>
+                    </div>
+                </div>
+
             </div>
-        </div>
+        }
     }
 
     <!-- 2. Menu Controls Section -->
@@ -95,6 +159,13 @@
                 </button>
             </div>
             <div class="table-responsive">
+                @if (!string.IsNullOrWhiteSpace(_menuError))
+                {
+                    <div class="alert alert-danger mb-3"
+                        role="alert">
+                        @_menuError
+                    </div>
+                }
                 <table class="table align-middle">
                     <thead class="table-light">
                         <tr>
@@ -105,24 +176,93 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="fw-semibold">Cheese Pizza</td>
-                            <td>$12.00</td>
-                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
-                        </tr>
-                        <tr>
-                            <td class="fw-semibold">Pepperoni Pizza</td>
-                            <td>$14.00</td>
-                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
-                        </tr>
-                        <tr>
-                            <td class="fw-semibold">Hawaiian Pizza</td>
-                            <td>$15.00</td>
-                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
-                        </tr>
+                        @if (_isLoadingMenu)
+                        {
+                            <tr>
+                                <td colspan="4"
+                                    class="text-center text-muted py-4">
+
+                                    <div class="spinner-border spinner-border-sm text-danger me-2"
+                                        role="status">
+                                    </div>
+
+                                    Loading menu...
+                                </td>
+                            </tr>
+                        }
+                        else if (_specialtyPizzas.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4"
+                                    class="text-center text-muted py-4">
+                                    No specialty pizzas found.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var pizza in _specialtyPizzas)
+                            {
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        @pizza.Name Pizza
+                                    </td>
+
+                                    <td>
+                                        $@pizza.SmallPrice.ToString("0.00")
+                                    </td>
+
+                                    <td>
+                                        @if (pizza.IsAvailable)
+                                        {
+                                            <span class="badge bg-success-subtle text-success">
+                                                Available
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary">
+                                                Unavailable
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary me-2">
+                                            Edit
+                                        </button>
+
+                                        <button type="button"
+                                                class="btn btn-sm @(pizza.IsAvailable
+                                                    ? "btn-outline-danger"
+                                                    : "btn-outline-success")"
+                                                @onclick="() => TogglePizzaAvailabilityAsync(pizza)"
+                                                disabled="@_updatingPizzaIds.Contains(pizza.Id)">
+
+                                            @if (_updatingPizzaIds.Contains(pizza.Id))
+                                            {
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            }
+                                            else if (pizza.IsAvailable)
+                                            {
+                                                <span>Disable</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Enable</span>
+                                            }
+
+                                        </button>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        }
                     </tbody>
                 </table>
             </div>
@@ -218,4 +358,231 @@
 
 @code {
     private string _activeTab = "sales";
+
+    private bool _isLoadingSales = true;
+
+    private string _salesError = string.Empty;
+
+    private decimal _todayRevenue;
+
+    private int _todayOrderCount;
+
+    private int _activeOrderCount;
+
+    private decimal _averageTicket;
+
+    private decimal _averageItemsPerOrder;
+
+    private string _topPizzaName = "—";
+
+    private string _topPizzaDetail = "No sales today";
+
+    private List<SpecialtyPizza> _specialtyPizzas = new();
+
+    private bool _isLoadingMenu;
+
+    private string _menuError = string.Empty;
+
+    private readonly HashSet<int> _updatingPizzaIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSalesSummaryAsync();
+        await LoadMenuAsync();
+    }
+
+    private async Task LoadSalesSummaryAsync()
+    {
+        _isLoadingSales = true;
+        _salesError = string.Empty;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            var storeTimeZone =
+                TimeZoneInfo.FindSystemTimeZoneById("America/Boise");
+
+            var storeNow =
+                TimeZoneInfo.ConvertTime(
+                    DateTimeOffset.UtcNow,
+                    storeTimeZone);
+
+            var storeToday =
+                storeNow.Date;
+
+            var todayStart =
+                TimeZoneInfo.ConvertTimeToUtc(
+                    storeToday,
+                    storeTimeZone);
+
+            var tomorrowStart =
+                TimeZoneInfo.ConvertTimeToUtc(
+                    storeToday.AddDays(1),
+                    storeTimeZone);
+
+            var todayOrders = await db.Orders
+                .AsNoTracking()
+                .Include(order => order.Items)
+                .Where(order =>
+                    order.PlacedAt >= todayStart &&
+                    order.PlacedAt < tomorrowStart &&
+                    order.Status != OrderStatus.Cancelled)
+                .ToListAsync();
+
+            _todayOrderCount =
+                todayOrders.Count;
+
+            _todayRevenue =
+                todayOrders.Sum(order => order.Total);
+
+            _averageTicket =
+                _todayOrderCount > 0
+                    ? _todayRevenue / _todayOrderCount
+                    : 0m;
+
+            var totalItems =
+                todayOrders
+                    .SelectMany(order => order.Items)
+                    .Sum(item => item.Quantity);
+
+            _averageItemsPerOrder =
+                _todayOrderCount > 0
+                    ? (decimal)totalItems / _todayOrderCount
+                    : 0m;
+
+            _activeOrderCount =
+                await db.Orders.CountAsync(order =>
+                    order.Status != OrderStatus.Completed &&
+                    order.Status != OrderStatus.Cancelled);
+
+            var pizzaSales =
+                todayOrders
+                    .SelectMany(order => order.Items)
+                    .GroupBy(item => item.PizzaName)
+                    .Select(group => new
+                    {
+                        Name = group.Key,
+                        Quantity = group.Sum(item => item.Quantity)
+                    })
+                    .OrderByDescending(item => item.Quantity)
+                    .ThenBy(item => item.Name)
+                    .ToList();
+
+            if (pizzaSales.Count > 0)
+            {
+                var topQuantity =
+                    pizzaSales[0].Quantity;
+
+                var topPizzas =
+                    pizzaSales
+                        .Where(item => item.Quantity == topQuantity)
+                        .ToList();
+
+                if (topPizzas.Count == 1)
+                {
+                    _topPizzaName =
+                        topPizzas[0].Name;
+
+                    _topPizzaDetail =
+                        $"{topQuantity} sold today";
+                }
+                else
+                {
+                    _topPizzaName =
+                        $"{topPizzas.Count}-way tie";
+
+                    _topPizzaDetail =
+                        $"{topQuantity} each today";
+                }
+            }
+            else
+            {
+                _topPizzaName = "—";
+                _topPizzaDetail = "No sales today";
+            }
+        }
+        catch
+        {
+            _salesError =
+                "We couldn't load the sales summary. Please try again.";
+        }
+        finally
+        {
+            _isLoadingSales = false;
+        }
+    }
+
+    private async Task LoadMenuAsync()
+{
+    _isLoadingMenu = true;
+    _menuError = string.Empty;
+
+    try
+    {
+        await using var db =
+            await DbFactory.CreateDbContextAsync();
+
+        _specialtyPizzas = await db.SpecialtyPizzas
+            .AsNoTracking()
+            .OrderBy(pizza => pizza.Name)
+            .ToListAsync();
+    }
+    catch
+    {
+        _menuError =
+            "We couldn't load the menu. Please try again.";
+    }
+    finally
+    {
+        _isLoadingMenu = false;
+    }
+}
+
+    private async Task TogglePizzaAvailabilityAsync(
+        SpecialtyPizza pizza)
+    {
+        if (!_updatingPizzaIds.Add(pizza.Id))
+        {
+            return;
+        }
+
+        _menuError = string.Empty;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            var databasePizza =
+                await db.SpecialtyPizzas
+                    .FirstOrDefaultAsync(
+                        item => item.Id == pizza.Id);
+
+            if (databasePizza is null)
+            {
+                _menuError =
+                    "That pizza could not be found.";
+
+                return;
+            }
+
+            databasePizza.IsAvailable =
+                !databasePizza.IsAvailable;
+
+            await db.SaveChangesAsync();
+
+            await LoadMenuAsync();
+        }
+        catch
+        {
+            _menuError =
+                $"We couldn't update {pizza.Name}. Please try again.";
+        }
+        finally
+        {
+            _updatingPizzaIds.Remove(pizza.Id);
+        }
+    }
 }
