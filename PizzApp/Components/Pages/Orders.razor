@@ -1,128 +1,697 @@
 @page "/orders"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@using System.Security.Claims
+@using PizzApp.Data
+@using PizzApp.Models
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
+
 @attribute [Authorize(Roles = "Customer,Administrator")]
+
+@implements IAsyncDisposable
 
 <PageTitle>Order History & Tracking - PizzApp</PageTitle>
 
 <div class="container-xl py-4 py-md-5">
+
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
         <div>
             <h1 class="h2 fw-bold mb-1">Order History & Tracking</h1>
-            <p class="text-muted mb-0">Follow your active pizza delivery in real-time or view your past order receipts.</p>
+
+            <p class="text-muted mb-0">
+                Follow your active pizza order in real-time or view your past orders.
+            </p>
         </div>
+
         <div>
             <NavLink href="menu" class="btn btn-pizzapp-primary">
-                <i class="bi bi-plus-circle me-1"></i> Order New Pizza
+                <i class="bi bi-plus-circle me-1"></i>
+                Order New Pizza
             </NavLink>
         </div>
     </div>
 
-    <!-- Active Order Live Tracker -->
-    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-5">
-        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
+    @if (_isLoading)
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+            <div class="spinner-border text-danger mx-auto mb-3" role="status"></div>
+
+            <p class="text-muted mb-0">
+                Loading your orders...
+            </p>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            @_errorMessage
+        </div>
+    }
+    else if (_orders.Count == 0)
+    {
+        <div class="card border-0 shadow-sm rounded-4 p-5 bg-white text-center">
+            <i class="bi bi-receipt display-4 text-muted mb-3"></i>
+
+            <h2 class="h4 fw-bold">
+                No orders yet
+            </h2>
+
+            <p class="text-muted mb-4">
+                Your orders will appear here after you place them.
+            </p>
+
             <div>
-                <span class="badge bg-danger-subtle text-danger px-3 py-1 rounded-pill fw-semibold mb-1">
-                    <i class="bi bi-broadcast me-1"></i> Live Tracking
-                </span>
-                <h3 class="h5 fw-bold mb-0">Order #PA-98214</h3>
-            </div>
-            <div class="text-sm-end">
-                <span class="text-muted small d-block">Estimated Delivery:</span>
-                <span class="fw-bold text-dark fs-5">25 – 35 mins</span>
+                <NavLink href="menu" class="btn btn-pizzapp-primary">
+                    <i class="bi bi-pizza me-1"></i>
+                    Order a Pizza
+                </NavLink>
             </div>
         </div>
+    }
+    else
+    {
+        @if (ActiveOrder is not null)
+        {
+            <!-- Active Order Live Tracker -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-5">
 
-        <!-- Progress Tracker Bar -->
-        <div class="position-relative my-4 px-2">
-            <div class="progress" style="height: 6px;">
-                <div class="progress-bar bg-danger" role="progressbar" style="width: 65%;" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
-            </div>
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-4">
 
-            <div class="d-flex justify-content-between position-relative mt-n3" style="margin-top: -19px;">
-                <!-- Step 1 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
-                        <i class="bi bi-check-lg"></i>
+                    <div>
+                        <span class="badge bg-danger-subtle text-danger px-3 py-1 rounded-pill fw-semibold mb-1">
+                            <i class="bi bi-broadcast me-1"></i>
+                            Live Tracking
+                        </span>
+
+                        <h3 class="h5 fw-bold mb-0">
+                            Order #@ActiveOrder.OrderNumber
+                        </h3>
                     </div>
-                    <span class="small fw-semibold mt-2 d-block text-dark">Received</span>
+
+                    <div class="text-sm-end">
+                        <span class="text-muted small d-block">
+                            @(ActiveOrder.FulfillmentType == FulfillmentType.Delivery
+                                ? "Estimated Delivery:"
+                                : "Estimated Pickup:")
+                        </span>
+
+                        <span class="fw-bold text-dark fs-5">
+                            @(ActiveOrder.FulfillmentType == FulfillmentType.Delivery
+                                ? "25 – 35 mins"
+                                : "15 – 25 mins")
+                        </span>
+                    </div>
+
                 </div>
 
-                <!-- Step 2 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
-                        <i class="bi bi-check-lg"></i>
+                <!-- Progress Tracker -->
+                <div class="position-relative my-4 px-2">
+
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-danger"
+                             role="progressbar"
+                             style="width: @(GetProgressPercent(ActiveOrder))%;"
+                             aria-valuenow="@GetProgressPercent(ActiveOrder)"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
                     </div>
-                    <span class="small fw-semibold mt-2 d-block text-dark">Baking</span>
+
+                    <div class="d-flex justify-content-between position-relative"
+                         style="margin-top: -19px;">
+
+                        @for (var step = 1; step <= 4; step++)
+                        {
+                            var stepNumber = step;
+
+                            <div class="text-center" style="width: 110px;">
+
+                                <div class="@GetStepCircleClass(ActiveOrder, stepNumber)"
+                                     style="width: 32px; height: 32px;">
+
+                                    <i class="@GetStepIcon(ActiveOrder, stepNumber)"></i>
+                                </div>
+
+                                <span class="@GetStepLabelClass(ActiveOrder, stepNumber)">
+                                    @GetStepLabel(ActiveOrder, stepNumber)
+                                </span>
+
+                            </div>
+                        }
+
+                    </div>
+
                 </div>
 
-                <!-- Step 3 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-danger text-white mx-auto d-flex align-items-center justify-content-center shadow-sm" style="width: 32px; height: 32px;">
-                        <i class="bi bi-bicycle"></i>
+                <div class="bg-light p-3 rounded-3 mt-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 small">
+
+                    <div>
+                        <strong>Items:</strong>
+                        @GetItemsSummary(ActiveOrder)
                     </div>
-                    <span class="small fw-bold mt-2 d-block text-danger">On the Way</span>
+
+                    <div>
+                        @if (ActiveOrder.FulfillmentType == FulfillmentType.Delivery)
+                        {
+                            <strong>Delivering to:</strong>
+                            <span>
+                                @(ActiveOrder.DeliveryAddress ?? "Address unavailable")
+                            </span>
+                        }
+                        else
+                        {
+                            <strong>Pickup at:</strong>
+                            <span>PizzApp Store #1</span>
+                        }
+                    </div>
+
                 </div>
 
-                <!-- Step 4 -->
-                <div class="text-center" style="width: 80px;">
-                    <div class="rounded-circle bg-light border text-muted mx-auto d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                        <i class="bi bi-house"></i>
-                    </div>
-                    <span class="small fw-normal mt-2 d-block text-muted">Delivered</span>
+            </div>
+        }
+
+        <!-- Previous Orders -->
+        <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-danger"></i>
+            Past Orders
+        </h4>
+
+        @if (!PastOrders.Any())
+        {
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <p class="text-muted mb-0">
+                    No previous orders yet.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+
+                <div class="table-responsive">
+
+                    <table class="table align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Order ID</th>
+                                <th>Date</th>
+                                <th>Items</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            @foreach (var order in PastOrders)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-bold">
+                                        #@order.OrderNumber
+                                    </td>
+
+                                    <td class="text-muted">
+                                        @order.PlacedAt.ToString("MMM d, yyyy")
+                                    </td>
+
+                                    <td>
+                                        @GetItemsSummary(order)
+                                    </td>
+
+                                    <td class="fw-semibold">
+                                        $@order.Total.ToString("0.00")
+                                    </td>
+
+                                    <td>
+                                        <span class="@GetStatusBadgeClass(order)">
+                                            @GetStatusLabel(order)
+                                        </span>
+                                    </td>
+
+                                    <td class="text-end pe-4">
+
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                @onclick="() => ToggleReceipt(order.Id)">
+                                            @(_expandedOrderId == order.Id
+                                                ? "Hide Receipt"
+                                                : "View Receipt")
+                                        </button>
+
+                                    </td>
+                                </tr>
+
+                                @if (_expandedOrderId == order.Id)
+                                {
+                                    <tr class="table-light">
+
+                                        <td colspan="6" class="px-4 py-3">
+
+                                            <div class="row g-3">
+
+                                                <div class="col-12 col-md-6">
+
+                                                    <div class="fw-semibold mb-2">
+                                                        Order Items
+                                                    </div>
+
+                                                    @foreach (var item in order.Items)
+                                                    {
+                                                        <div class="small mb-2">
+
+                                                            <strong>
+                                                                @item.Quantity×
+                                                                @item.Size
+                                                                @GetPizzaName(item)
+                                                            </strong>
+
+                                                            @if (item.IsCustom)
+                                                            {
+                                                                <div class="text-muted">
+                                                                    @item.Crust,
+                                                                    @item.Sauce,
+                                                                    @item.Cheese
+                                                                </div>
+
+                                                                @if (!string.IsNullOrWhiteSpace(item.Toppings))
+                                                                {
+                                                                    <div class="text-muted">
+                                                                        Toppings:
+                                                                        @item.Toppings
+                                                                    </div>
+                                                                }
+                                                            }
+
+                                                            <div>
+                                                                $@item.TotalPrice.ToString("0.00")
+                                                            </div>
+
+                                                        </div>
+                                                    }
+
+                                                </div>
+
+                                                <div class="col-12 col-md-6">
+
+                                                    <div class="fw-semibold mb-2">
+                                                        Order Details
+                                                    </div>
+
+                                                    <div class="small">
+                                                        <div>
+                                                            <strong>Type:</strong>
+                                                            @order.FulfillmentType
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>Status:</strong>
+                                                            @GetStatusLabel(order)
+                                                        </div>
+
+                                                        @if (order.FulfillmentType == FulfillmentType.Delivery)
+                                                        {
+                                                            <div>
+                                                                <strong>Delivering to:</strong>
+                                                                @(order.DeliveryAddress ?? "Address unavailable")
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <div>
+                                                                <strong>Pickup at:</strong>
+                                                                PizzApp Store #1
+                                                            </div>
+                                                        }
+
+                                                        <hr class="my-2" />
+
+                                                        <div>
+                                                            <strong>Subtotal:</strong>
+                                                            $@order.Subtotal.ToString("0.00")
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>Tax:</strong>
+                                                            $@order.Tax.ToString("0.00")
+                                                        </div>
+
+                                                        <div>
+                                                            <strong>Delivery Fee:</strong>
+                                                            $@order.DeliveryFee.ToString("0.00")
+                                                        </div>
+
+                                                        <div class="fw-bold mt-1">
+                                                            Total:
+                                                            $@order.Total.ToString("0.00")
+                                                        </div>
+
+                                                    </div>
+
+                                                </div>
+
+                                            </div>
+
+                                        </td>
+
+                                    </tr>
+                                }
+                            }
+
+                        </tbody>
+
+                    </table>
+
                 </div>
-            </div>
-        </div>
 
-        <div class="bg-light p-3 rounded-3 mt-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 small">
-            <div>
-                <strong>Items:</strong> 1x Large Pepperoni Pizza, 1x Cheesy Breadsticks
             </div>
-            <div>
-                <strong>Delivering to:</strong> 525 S Center St, Rexburg, ID
-            </div>
-        </div>
-    </div>
+        }
+    }
 
-    <!-- Past Orders List -->
-    <h4 class="h5 fw-bold mb-3 d-flex align-items-center gap-2">
-        <i class="bi bi-clock-history text-danger"></i> Past Orders
-    </h4>
-
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
-        <div class="table-responsive">
-            <table class="table align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="ps-4">Order ID</th>
-                        <th>Date</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                        <th class="text-end pe-4">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td class="ps-4 fw-bold">#PA-97103</td>
-                        <td class="text-muted">Sep 20, 2026</td>
-                        <td>1x Medium Hawaiian, 1x 2L Soda</td>
-                        <td class="fw-semibold">$24.50</td>
-                        <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Delivered</span></td>
-                        <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-secondary">View Receipt</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="ps-4 fw-bold">#PA-96024</td>
-                        <td class="text-muted">Sep 14, 2026</td>
-                        <td>2x Large Sausage, Garlic Knots</td>
-                        <td class="fw-semibold">$38.00</td>
-                        <td><span class="badge bg-success-subtle text-success rounded-pill px-3 py-1">Delivered</span></td>
-                        <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-secondary">View Receipt</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
 </div>
+
+@code {
+    private string? _customerId;
+
+    private List<Order> _orders = new();
+
+    private bool _isLoading = true;
+
+    private string _errorMessage = string.Empty;
+
+    private int? _expandedOrderId;
+
+    private CancellationTokenSource? _refreshCancellation;
+
+    private Task? _refreshTask;
+
+    private Order? ActiveOrder =>
+        _orders.FirstOrDefault(order =>
+            order.Status != OrderStatus.Completed &&
+            order.Status != OrderStatus.Cancelled);
+
+    private IEnumerable<Order> PastOrders =>
+        ActiveOrder is null
+            ? _orders
+            : _orders.Where(order => order.Id != ActiveOrder.Id);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        _customerId = authenticationState.User
+            .FindFirst(ClaimTypes.NameIdentifier)?
+            .Value;
+
+        if (string.IsNullOrWhiteSpace(_customerId))
+        {
+            _errorMessage =
+                "Your account could not be identified. Please sign in again.";
+
+            _isLoading = false;
+
+            return;
+        }
+
+        await LoadOrdersAsync();
+
+        _refreshCancellation = new CancellationTokenSource();
+
+        _refreshTask =
+            RefreshOrdersPeriodicallyAsync(
+                _refreshCancellation.Token);
+    }
+
+    private async Task LoadOrdersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(_customerId))
+        {
+            return;
+        }
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync(cancellationToken);
+
+            _orders = await db.Orders
+                .AsNoTracking()
+                .Include(order => order.Items)
+                .Where(order => order.CustomerId == _customerId)
+                .OrderByDescending(order => order.PlacedAt)
+                .ToListAsync(cancellationToken);
+
+            _errorMessage = string.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal when the page is closed.
+        }
+        catch
+        {
+            _errorMessage =
+                "We couldn't load your orders. Please try again.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RefreshOrdersPeriodicallyAsync(
+        CancellationToken cancellationToken)
+    {
+        using var timer =
+            new PeriodicTimer(TimeSpan.FromSeconds(10));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadOrdersAsync(cancellationToken);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when navigating away from this page.
+        }
+    }
+
+    private void ToggleReceipt(int orderId)
+    {
+        _expandedOrderId =
+            _expandedOrderId == orderId
+                ? null
+                : orderId;
+    }
+
+    private static string GetItemsSummary(Order order)
+    {
+        return string.Join(
+            ", ",
+            order.Items.Select(item =>
+                $"{item.Quantity}x {item.Size} {GetPizzaName(item)}"));
+    }
+
+    private static string GetPizzaName(OrderItem item)
+    {
+        return item.PizzaName.EndsWith(
+            "Pizza",
+            StringComparison.OrdinalIgnoreCase)
+                ? item.PizzaName
+                : $"{item.PizzaName} Pizza";
+    }
+
+    private static int GetCurrentStep(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received => 1,
+
+            OrderStatus.Baking => 2,
+
+            OrderStatus.Ready =>
+                order.FulfillmentType == FulfillmentType.Pickup
+                    ? 3
+                    : 2,
+
+            OrderStatus.OutForDelivery => 3,
+
+            OrderStatus.Completed => 4,
+
+            _ => 1
+        };
+    }
+
+    private static int GetProgressPercent(Order order)
+    {
+        return GetCurrentStep(order) switch
+        {
+            1 => 0,
+            2 => 33,
+            3 => 66,
+            4 => 100,
+            _ => 0
+        };
+    }
+
+    private static string GetStepLabel(
+        Order order,
+        int step)
+    {
+        return step switch
+        {
+            1 => "Received",
+
+            2 => "Baking",
+
+            3 => order.FulfillmentType == FulfillmentType.Pickup
+                ? "Ready for Pickup"
+                : "On the Way",
+
+            4 => order.FulfillmentType == FulfillmentType.Pickup
+                ? "Picked Up"
+                : "Delivered",
+
+            _ => string.Empty
+        };
+    }
+
+    private static string GetStepIcon(
+        Order order,
+        int step)
+    {
+        var currentStep = GetCurrentStep(order);
+
+        if (step < currentStep)
+        {
+            return "bi bi-check-lg";
+        }
+
+        return step switch
+        {
+            1 => "bi bi-check-lg",
+
+            2 => "bi bi-fire",
+
+            3 => order.FulfillmentType == FulfillmentType.Pickup
+                ? "bi bi-shop"
+                : "bi bi-bicycle",
+
+            4 => order.FulfillmentType == FulfillmentType.Pickup
+                ? "bi bi-bag-check"
+                : "bi bi-house",
+
+            _ => "bi bi-circle"
+        };
+    }
+
+    private static string GetStepCircleClass(
+        Order order,
+        int step)
+    {
+        var currentStep = GetCurrentStep(order);
+
+        var colorClass =
+            step <= currentStep
+                ? "bg-danger text-white shadow-sm"
+                : "bg-light border text-muted";
+
+        return
+            $"rounded-circle {colorClass} mx-auto " +
+            "d-flex align-items-center justify-content-center";
+    }
+
+    private static string GetStepLabelClass(
+        Order order,
+        int step)
+    {
+        var currentStep = GetCurrentStep(order);
+
+        if (step == currentStep)
+        {
+            return "small fw-bold mt-2 d-block text-danger";
+        }
+
+        if (step < currentStep)
+        {
+            return "small fw-semibold mt-2 d-block text-dark";
+        }
+
+        return "small fw-normal mt-2 d-block text-muted";
+    }
+
+    private static string GetStatusLabel(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Received => "Received",
+
+            OrderStatus.Baking => "Baking",
+
+            OrderStatus.Ready =>
+                order.FulfillmentType == FulfillmentType.Pickup
+                    ? "Ready for Pickup"
+                    : "Ready",
+
+            OrderStatus.OutForDelivery => "On the Way",
+
+            OrderStatus.Completed =>
+                order.FulfillmentType == FulfillmentType.Pickup
+                    ? "Picked Up"
+                    : "Delivered",
+
+            OrderStatus.Cancelled => "Cancelled",
+
+            _ => order.Status.ToString()
+        };
+    }
+
+    private static string GetStatusBadgeClass(Order order)
+    {
+        return order.Status switch
+        {
+            OrderStatus.Completed =>
+                "badge bg-success-subtle text-success rounded-pill px-3 py-1",
+
+            OrderStatus.Cancelled =>
+                "badge bg-secondary-subtle text-secondary rounded-pill px-3 py-1",
+
+            _ =>
+                "badge bg-danger-subtle text-danger rounded-pill px-3 py-1"
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_refreshCancellation is not null)
+        {
+            await _refreshCancellation.CancelAsync();
+        }
+
+        if (_refreshTask is not null)
+        {
+            try
+            {
+                await _refreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal shutdown.
+            }
+        }
+
+        _refreshCancellation?.Dispose();
+    }
+}
