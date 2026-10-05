@@ -159,6 +159,13 @@
                 </button>
             </div>
             <div class="table-responsive">
+                @if (!string.IsNullOrWhiteSpace(_menuError))
+                {
+                    <div class="alert alert-danger mb-3"
+                        role="alert">
+                        @_menuError
+                    </div>
+                }
                 <table class="table align-middle">
                     <thead class="table-light">
                         <tr>
@@ -169,24 +176,93 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="fw-semibold">Cheese Pizza</td>
-                            <td>$12.00</td>
-                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
-                        </tr>
-                        <tr>
-                            <td class="fw-semibold">Pepperoni Pizza</td>
-                            <td>$14.00</td>
-                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
-                        </tr>
-                        <tr>
-                            <td class="fw-semibold">Hawaiian Pizza</td>
-                            <td>$15.00</td>
-                            <td><span class="badge bg-success-subtle text-success">Available</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Edit</button></td>
-                        </tr>
+                        @if (_isLoadingMenu)
+                        {
+                            <tr>
+                                <td colspan="4"
+                                    class="text-center text-muted py-4">
+
+                                    <div class="spinner-border spinner-border-sm text-danger me-2"
+                                        role="status">
+                                    </div>
+
+                                    Loading menu...
+                                </td>
+                            </tr>
+                        }
+                        else if (_specialtyPizzas.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4"
+                                    class="text-center text-muted py-4">
+                                    No specialty pizzas found.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var pizza in _specialtyPizzas)
+                            {
+                                <tr>
+
+                                    <td class="fw-semibold">
+                                        @pizza.Name Pizza
+                                    </td>
+
+                                    <td>
+                                        $@pizza.SmallPrice.ToString("0.00")
+                                    </td>
+
+                                    <td>
+                                        @if (pizza.IsAvailable)
+                                        {
+                                            <span class="badge bg-success-subtle text-success">
+                                                Available
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary">
+                                                Unavailable
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary me-2">
+                                            Edit
+                                        </button>
+
+                                        <button type="button"
+                                                class="btn btn-sm @(pizza.IsAvailable
+                                                    ? "btn-outline-danger"
+                                                    : "btn-outline-success")"
+                                                @onclick="() => TogglePizzaAvailabilityAsync(pizza)"
+                                                disabled="@_updatingPizzaIds.Contains(pizza.Id)">
+
+                                            @if (_updatingPizzaIds.Contains(pizza.Id))
+                                            {
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            }
+                                            else if (pizza.IsAvailable)
+                                            {
+                                                <span>Disable</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Enable</span>
+                                            }
+
+                                        </button>
+
+                                    </td>
+
+                                </tr>
+                            }
+
+                        }
                     </tbody>
                 </table>
             </div>
@@ -301,9 +377,18 @@
 
     private string _topPizzaDetail = "No sales today";
 
+    private List<SpecialtyPizza> _specialtyPizzas = new();
+
+    private bool _isLoadingMenu;
+
+    private string _menuError = string.Empty;
+
+    private readonly HashSet<int> _updatingPizzaIds = new();
+
     protected override async Task OnInitializedAsync()
     {
         await LoadSalesSummaryAsync();
+        await LoadMenuAsync();
     }
 
     private async Task LoadSalesSummaryAsync()
@@ -426,6 +511,78 @@
         finally
         {
             _isLoadingSales = false;
+        }
+    }
+
+    private async Task LoadMenuAsync()
+{
+    _isLoadingMenu = true;
+    _menuError = string.Empty;
+
+    try
+    {
+        await using var db =
+            await DbFactory.CreateDbContextAsync();
+
+        _specialtyPizzas = await db.SpecialtyPizzas
+            .AsNoTracking()
+            .OrderBy(pizza => pizza.Name)
+            .ToListAsync();
+    }
+    catch
+    {
+        _menuError =
+            "We couldn't load the menu. Please try again.";
+    }
+    finally
+    {
+        _isLoadingMenu = false;
+    }
+}
+
+    private async Task TogglePizzaAvailabilityAsync(
+        SpecialtyPizza pizza)
+    {
+        if (!_updatingPizzaIds.Add(pizza.Id))
+        {
+            return;
+        }
+
+        _menuError = string.Empty;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            var databasePizza =
+                await db.SpecialtyPizzas
+                    .FirstOrDefaultAsync(
+                        item => item.Id == pizza.Id);
+
+            if (databasePizza is null)
+            {
+                _menuError =
+                    "That pizza could not be found.";
+
+                return;
+            }
+
+            databasePizza.IsAvailable =
+                !databasePizza.IsAvailable;
+
+            await db.SaveChangesAsync();
+
+            await LoadMenuAsync();
+        }
+        catch
+        {
+            _menuError =
+                $"We couldn't update {pizza.Name}. Please try again.";
+        }
+        finally
+        {
+            _updatingPizzaIds.Remove(pizza.Id);
         }
     }
 }
