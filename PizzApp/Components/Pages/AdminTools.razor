@@ -154,9 +154,6 @@
         <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="h5 fw-bold mb-0">Menu & Specialty Pizzas Control</h4>
-                <button class="btn btn-sm btn-pizzapp-primary">
-                    <i class="bi bi-plus-lg me-1"></i> Add Specialty Pizza
-                </button>
             </div>
             <div class="table-responsive">
                 @if (!string.IsNullOrWhiteSpace(_menuError))
@@ -231,7 +228,9 @@
                                     <td class="text-end">
 
                                         <button type="button"
-                                                class="btn btn-sm btn-outline-secondary me-2">
+                                                class="btn btn-sm btn-outline-secondary me-2"
+                                                @onclick="() => StartEditPizza(pizza)"
+                                                disabled="@_isSavingPizza">
                                             Edit
                                         </button>
 
@@ -266,6 +265,145 @@
                     </tbody>
                 </table>
             </div>
+            @if (_editingPizza is not null)
+            {
+                <div class="border-top pt-4 mt-3"
+                    @ref="_editPanel"
+                    tabindex="-1"
+                    style="outline: none;">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-1">
+                                Edit Specialty Pizza
+                            </h5>
+
+                            <p class="text-muted small mb-0">
+                                Update the menu details and prices for @_editingPizza.Name.
+                            </p>
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                @onclick="CancelEditPizza"
+                                disabled="@_isSavingPizza">
+                            Cancel
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_editPizzaError))
+                    {
+                        <div class="alert alert-danger"
+                            role="alert">
+                            @_editPizzaError
+                        </div>
+                    }
+
+                    <div class="row g-3">
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Pizza Name
+                            </label>
+
+                            <input type="text"
+                                class="form-control"
+                                @bind="_editingPizza.Name" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Image Path
+                            </label>
+
+                            <input type="text"
+                                class="form-control"
+                                @bind="_editingPizza.ImagePath" />
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">
+                                Description
+                            </label>
+
+                            <textarea class="form-control"
+                                    rows="3"
+                                    @bind="_editingPizza.Description">
+                            </textarea>
+                        </div>
+
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label fw-semibold">
+                                Small Price
+                            </label>
+
+                            <input type="number"
+                                step="0.01"
+                                min="0"
+                                class="form-control"
+                                @bind="_editingPizza.SmallPrice" />
+                        </div>
+
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label fw-semibold">
+                                Medium Price
+                            </label>
+
+                            <input type="number"
+                                step="0.01"
+                                min="0"
+                                class="form-control"
+                                @bind="_editingPizza.MediumPrice" />
+                        </div>
+
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label fw-semibold">
+                                Large Price
+                            </label>
+
+                            <input type="number"
+                                step="0.01"
+                                min="0"
+                                class="form-control"
+                                @bind="_editingPizza.LargePrice" />
+                        </div>
+
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label fw-semibold">
+                                XL Price
+                            </label>
+
+                            <input type="number"
+                                step="0.01"
+                                min="0"
+                                class="form-control"
+                                @bind="_editingPizza.XLargePrice" />
+                        </div>
+
+                        <div class="col-12">
+                            <button type="button"
+                                    class="btn btn-pizzapp-primary"
+                                    @onclick="SaveEditedPizzaAsync"
+                                    disabled="@_isSavingPizza">
+
+                                @if (_isSavingPizza)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-1"></i>
+                                    <span>Save Changes</span>
+                                }
+
+                            </button>
+                        </div>
+
+                    </div>
+
+                </div>
+            }
         </div>
     }
 
@@ -383,12 +521,31 @@
 
     private string _menuError = string.Empty;
 
+    private ElementReference _editPanel;
+
+    private bool _scrollToEditPanel;
+
+    private SpecialtyPizza? _editingPizza;
+
+    private bool _isSavingPizza;
+
+    private string _editPizzaError = string.Empty;
+
     private readonly HashSet<int> _updatingPizzaIds = new();
 
     protected override async Task OnInitializedAsync()
     {
         await LoadSalesSummaryAsync();
         await LoadMenuAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToEditPanel && _editingPizza is not null)
+        {
+            _scrollToEditPanel = false;
+            await _editPanel.FocusAsync();
+        }
     }
 
     private async Task LoadSalesSummaryAsync()
@@ -515,30 +672,164 @@
     }
 
     private async Task LoadMenuAsync()
-{
-    _isLoadingMenu = true;
-    _menuError = string.Empty;
+    {
+        _isLoadingMenu = true;
+        _menuError = string.Empty;
 
-    try
-    {
-        await using var db =
-            await DbFactory.CreateDbContextAsync();
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
 
-        _specialtyPizzas = await db.SpecialtyPizzas
-            .AsNoTracking()
-            .OrderBy(pizza => pizza.Name)
-            .ToListAsync();
+            _specialtyPizzas = await db.SpecialtyPizzas
+                .AsNoTracking()
+                .OrderBy(pizza => pizza.Name)
+                .ToListAsync();
+        }
+        catch
+        {
+            _menuError =
+                "We couldn't load the menu. Please try again.";
+        }
+        finally
+        {
+            _isLoadingMenu = false;
+        }
     }
-    catch
+
+    private void StartEditPizza(SpecialtyPizza pizza)
     {
-        _menuError =
-            "We couldn't load the menu. Please try again.";
+        _editPizzaError = string.Empty;
+
+        _editingPizza = new SpecialtyPizza
+        {
+            Id = pizza.Id,
+            Name = pizza.Name,
+            Description = pizza.Description,
+            ImagePath = pizza.ImagePath,
+            SmallPrice = pizza.SmallPrice,
+            MediumPrice = pizza.MediumPrice,
+            LargePrice = pizza.LargePrice,
+            XLargePrice = pizza.XLargePrice,
+            IsAvailable = pizza.IsAvailable
+        };
+
+        _scrollToEditPanel = true;
     }
-    finally
+
+    private void CancelEditPizza()
     {
-        _isLoadingMenu = false;
+        if (_isSavingPizza)
+        {
+            return;
+        }
+
+        _editingPizza = null;
+        _editPizzaError = string.Empty;
     }
-}
+
+    private async Task SaveEditedPizzaAsync()
+    {
+        if (_editingPizza is null ||
+            _isSavingPizza)
+        {
+            return;
+        }
+
+        _editPizzaError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_editingPizza.Name))
+        {
+            _editPizzaError =
+                "Pizza name is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_editingPizza.Description))
+        {
+            _editPizzaError =
+                "Description is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_editingPizza.ImagePath))
+        {
+            _editPizzaError =
+                "Image path is required.";
+            return;
+        }
+
+        if (_editingPizza.SmallPrice <= 0 ||
+            _editingPizza.MediumPrice <= 0 ||
+            _editingPizza.LargePrice <= 0 ||
+            _editingPizza.XLargePrice <= 0)
+        {
+            _editPizzaError =
+                "All pizza prices must be greater than zero.";
+            return;
+        }
+
+        _isSavingPizza = true;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            var databasePizza =
+                await db.SpecialtyPizzas
+                    .FirstOrDefaultAsync(
+                        pizza => pizza.Id == _editingPizza.Id);
+
+            if (databasePizza is null)
+            {
+                _editPizzaError =
+                    "That pizza could not be found.";
+                return;
+            }
+
+            databasePizza.Name =
+                _editingPizza.Name.Trim();
+
+            databasePizza.Description =
+                _editingPizza.Description.Trim();
+
+            databasePizza.ImagePath =
+                _editingPizza.ImagePath.Trim();
+
+            databasePizza.SmallPrice =
+                _editingPizza.SmallPrice;
+
+            databasePizza.MediumPrice =
+                _editingPizza.MediumPrice;
+
+            databasePizza.LargePrice =
+                _editingPizza.LargePrice;
+
+            databasePizza.XLargePrice =
+                _editingPizza.XLargePrice;
+
+            await db.SaveChangesAsync();
+
+            _editingPizza = null;
+
+            await LoadMenuAsync();
+        }
+        catch (DbUpdateException)
+        {
+            _editPizzaError =
+                "The pizza could not be saved. Make sure the name is unique and try again.";
+        }
+        catch
+        {
+            _editPizzaError =
+                "We couldn't save the pizza changes. Please try again.";
+        }
+        finally
+        {
+            _isSavingPizza = false;
+        }
+    }
 
     private async Task TogglePizzaAvailabilityAsync(
         SpecialtyPizza pizza)
