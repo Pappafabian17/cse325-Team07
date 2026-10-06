@@ -98,7 +98,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 
-// Map HTTP POST authentication endpoints (Login, Register, Logout, QuickLogin)
+// Map HTTP POST authentication endpoints (Login, Register, Logout)
 app.MapAuthEndpoints();
 
 app.MapRazorComponents<App>()

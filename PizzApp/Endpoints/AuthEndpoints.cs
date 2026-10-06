@@ -102,28 +102,6 @@ public static class AuthEndpoints
             return Results.LocalRedirect("/");
         });
 
-        // Demo Quick Login (Very helpful for students & professors testing role switching)
-        group.MapPost("/QuickLogin", async (
-            [FromForm] string? role,
-            SignInManager<ApplicationUser> signInManager,
-            UserManager<ApplicationUser> userManager) =>
-        {
-            var email = role switch
-            {
-                "Administrator" => "admin@pizzapp.com",
-                "Staff" => "staff@pizzapp.com",
-                _ => "customer@pizzapp.com"
-            };
-
-            var user = await userManager.FindByEmailAsync(email);
-            if (user != null)
-            {
-                await signInManager.SignInAsync(user, isPersistent: false);
-            }
-
-            return Results.LocalRedirect("/");
-        });
-
         return app;
     }
 }
