@@ -2,11 +2,13 @@
 @page "/admin/tools"
 @attribute [Authorize(Roles = "Administrator")]
 
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
 @using PizzApp.Data
 @using PizzApp.Models
 
 @inject IDbContextFactory<PizzAppDbContext> DbFactory
+@inject IServiceScopeFactory ScopeFactory
 
 <PageTitle>Admin Tools - PizzApp</PageTitle>
 
@@ -429,20 +431,93 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td class="fw-semibold">Sam Kitchen Staff</td>
-                            <td><span class="role-badge role-badge-staff">Kitchen Staff</span></td>
-                            <td class="text-muted">staff@pizzapp.com</td>
-                            <td><span class="badge bg-success-subtle text-success">Active Shift</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Manage</button></td>
-                        </tr>
-                        <tr>
-                            <td class="fw-semibold">Jordan Administrator</td>
-                            <td><span class="role-badge role-badge-admin">Administrator</span></td>
-                            <td class="text-muted">admin@pizzapp.com</td>
-                            <td><span class="badge bg-primary-subtle text-primary">Owner / Admin</span></td>
-                            <td class="text-end"><button class="btn btn-sm btn-outline-secondary">Manage</button></td>
-                        </tr>
+                        @if (_isLoadingStaff)
+                        {
+                            <tr>
+                                <td colspan="5"
+                                    class="text-center text-muted py-4">
+
+                                    <div class="spinner-border spinner-border-sm text-danger me-2"
+                                        role="status">
+                                    </div>
+
+                                    Loading staff accounts...
+                                </td>
+                            </tr>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_staffError))
+                        {
+                            <tr>
+                                <td colspan="5">
+                                    <div class="alert alert-danger mb-0"
+                                        role="alert">
+                                        @_staffError
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        else if (_staffAccounts.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5"
+                                    class="text-center text-muted py-4">
+                                    No staff accounts found.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var staff in _staffAccounts)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">
+                                        @staff.FullName
+                                    </td>
+
+                                    <td>
+                                        @if (staff.Role == "Administrator")
+                                        {
+                                            <span class="role-badge role-badge-admin">
+                                                Administrator
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="role-badge role-badge-staff">
+                                                Staff
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-muted">
+                                        @staff.Email
+                                    </td>
+
+                                    <td>
+                                        @if (staff.IsDisabled)
+                                        {
+                                            <span class="badge bg-secondary-subtle text-secondary">
+                                                Disabled
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success-subtle text-success">
+                                                Active
+                                            </span>
+                                        }
+                                    </td>
+
+                                    <td class="text-end">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                disabled>
+                                            Manage
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
                     </tbody>
                 </table>
             </div>
@@ -515,6 +590,12 @@
 
     private string _topPizzaDetail = "No sales today";
 
+    private List<StaffAccountViewModel> _staffAccounts = new();
+
+    private bool _isLoadingStaff;
+
+    private string _staffError = string.Empty;
+
     private List<SpecialtyPizza> _specialtyPizzas = new();
 
     private bool _isLoadingMenu;
@@ -537,6 +618,7 @@
     {
         await LoadSalesSummaryAsync();
         await LoadMenuAsync();
+        await LoadStaffAccountsAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -694,6 +776,79 @@
         finally
         {
             _isLoadingMenu = false;
+        }
+    }
+
+    private async Task LoadStaffAccountsAsync()
+    {
+        _isLoadingStaff = true;
+        _staffError = string.Empty;
+
+        try
+        {
+            await using var scope =
+                ScopeFactory.CreateAsyncScope();
+
+            var userManager =
+                scope.ServiceProvider
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+
+            var administrators =
+                await userManager.GetUsersInRoleAsync("Administrator");
+
+            var staffUsers =
+                await userManager.GetUsersInRoleAsync("Staff");
+
+            var accounts =
+                new List<StaffAccountViewModel>();
+
+            foreach (var user in administrators)
+            {
+                accounts.Add(new StaffAccountViewModel
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    Email = user.Email ?? user.UserName ?? string.Empty,
+                    Role = "Administrator",
+                    IsDisabled =
+                        await userManager.IsLockedOutAsync(user)
+                });
+            }
+
+            foreach (var user in staffUsers)
+            {
+                // Avoid showing the same account twice if somebody
+                // accidentally belongs to both roles.
+                if (accounts.Any(account => account.Id == user.Id))
+                {
+                    continue;
+                }
+
+                accounts.Add(new StaffAccountViewModel
+                {
+                    Id = user.Id,
+                    FullName = user.FullName,
+                    Email = user.Email ?? user.UserName ?? string.Empty,
+                    Role = "Staff",
+                    IsDisabled =
+                        await userManager.IsLockedOutAsync(user)
+                });
+            }
+
+            _staffAccounts = accounts
+                .OrderByDescending(account =>
+                    account.Role == "Administrator")
+                .ThenBy(account => account.FullName)
+                .ToList();
+        }
+        catch
+        {
+            _staffError =
+                "We couldn't load the staff accounts. Please try again.";
+        }
+        finally
+        {
+            _isLoadingStaff = false;
         }
     }
 
@@ -875,5 +1030,18 @@
         {
             _updatingPizzaIds.Remove(pizza.Id);
         }
+    }
+
+    private sealed class StaffAccountViewModel
+    {
+        public string Id { get; set; } = string.Empty;
+
+        public string FullName { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string Role { get; set; } = string.Empty;
+
+        public bool IsDisabled { get; set; }
     }
 }
