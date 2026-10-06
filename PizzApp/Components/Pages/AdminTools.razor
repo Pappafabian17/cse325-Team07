@@ -415,10 +415,140 @@
         <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h4 class="h5 fw-bold mb-0">Staff Account Management</h4>
-                <button class="btn btn-sm btn-pizzapp-primary">
-                    <i class="bi bi-person-plus me-1"></i> Add Staff Member
+                <button type="button"
+                        class="btn btn-sm btn-pizzapp-primary"
+                        @onclick="StartAddStaff"
+                        disabled="@(_showAddStaffForm || _isCreatingStaff)">
+                    <i class="bi bi-person-plus me-1"></i>
+                    Add Staff Member
                 </button>
             </div>
+            @if (_showAddStaffForm)
+            {
+                <div class="border rounded-3 p-3 mb-4 bg-light">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-1">
+                                Add Staff Member
+                            </h5>
+
+                            <p class="text-muted small mb-0">
+                                Create a new staff or administrator account.
+                            </p>
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                @onclick="CancelAddStaff"
+                                disabled="@_isCreatingStaff">
+                            Cancel
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_addStaffError))
+                    {
+                        <div class="alert alert-danger"
+                            role="alert">
+                            @_addStaffError
+                        </div>
+                    }
+
+                    <div class="row g-3">
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Full Name
+                            </label>
+
+                            <input type="text"
+                                class="form-control"
+                                @bind="_newStaffFullName"
+                                disabled="@_isCreatingStaff" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Email
+                            </label>
+
+                            <input type="email"
+                                class="form-control"
+                                @bind="_newStaffEmail"
+                                disabled="@_isCreatingStaff" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Role
+                            </label>
+
+                            <select class="form-select"
+                                    @bind="_newStaffRole"
+                                    disabled="@_isCreatingStaff">
+                                <option value="Staff">Staff</option>
+                                <option value="Administrator">Administrator</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Initial Password
+                            </label>
+
+                            <input type="password"
+                                class="form-control"
+                                autocomplete="new-password"
+                                @bind="_newStaffPassword"
+                                disabled="@_isCreatingStaff" />
+
+                            <div class="form-text">
+                                Minimum 6 characters.
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Confirm Password
+                            </label>
+
+                            <input type="password"
+                                class="form-control"
+                                autocomplete="new-password"
+                                @bind="_newStaffConfirmPassword"
+                                disabled="@_isCreatingStaff" />
+                        </div>
+
+                        <div class="col-12">
+                            <button type="button"
+                                    class="btn btn-pizzapp-primary"
+                                    @onclick="CreateStaffAsync"
+                                    disabled="@_isCreatingStaff">
+
+                                @if (_isCreatingStaff)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Creating Account...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-check me-1"></i>
+                                    <span>Create Staff Account</span>
+                                }
+
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(_staffSuccess))
+            {
+                <div class="alert alert-success"
+                    role="status">
+                    @_staffSuccess
+                </div>
+            }
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead class="table-light">
@@ -595,6 +725,24 @@
     private bool _isLoadingStaff;
 
     private string _staffError = string.Empty;
+
+    private bool _showAddStaffForm;
+
+    private bool _isCreatingStaff;
+
+    private string _newStaffFullName = string.Empty;
+
+    private string _newStaffEmail = string.Empty;
+
+    private string _newStaffRole = "Staff";
+
+    private string _newStaffPassword = string.Empty;
+
+    private string _newStaffConfirmPassword = string.Empty;
+
+    private string _addStaffError = string.Empty;
+
+    private string _staffSuccess = string.Empty;
 
     private List<SpecialtyPizza> _specialtyPizzas = new();
 
@@ -849,6 +997,184 @@
         finally
         {
             _isLoadingStaff = false;
+        }
+    }
+
+    private void StartAddStaff()
+    {
+        _staffSuccess = string.Empty;
+        _addStaffError = string.Empty;
+
+        ResetNewStaffForm();
+
+        _showAddStaffForm = true;
+    }
+
+    private void CancelAddStaff()
+    {
+        if (_isCreatingStaff)
+        {
+            return;
+        }
+
+        _showAddStaffForm = false;
+        _addStaffError = string.Empty;
+
+        ResetNewStaffForm();
+    }
+
+    private void ResetNewStaffForm()
+    {
+        _newStaffFullName = string.Empty;
+        _newStaffEmail = string.Empty;
+        _newStaffRole = "Staff";
+        _newStaffPassword = string.Empty;
+        _newStaffConfirmPassword = string.Empty;
+    }
+
+    private async Task CreateStaffAsync()
+    {
+        if (_isCreatingStaff)
+        {
+            return;
+        }
+
+        _addStaffError = string.Empty;
+        _staffSuccess = string.Empty;
+
+        var fullName =
+            _newStaffFullName.Trim();
+
+        var email =
+            _newStaffEmail.Trim();
+
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            _addStaffError =
+                "Full name is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(email) ||
+            !email.Contains('@'))
+        {
+            _addStaffError =
+                "Enter a valid email address.";
+            return;
+        }
+
+        if (_newStaffRole != "Staff" &&
+            _newStaffRole != "Administrator")
+        {
+            _addStaffError =
+                "Select a valid staff role.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_newStaffPassword) ||
+            _newStaffPassword.Length < 6)
+        {
+            _addStaffError =
+                "The password must be at least 6 characters.";
+            return;
+        }
+
+        if (_newStaffPassword !=
+            _newStaffConfirmPassword)
+        {
+            _addStaffError =
+                "The passwords do not match.";
+            return;
+        }
+
+        _isCreatingStaff = true;
+
+        try
+        {
+            await using var scope =
+                ScopeFactory.CreateAsyncScope();
+
+            var userManager =
+                scope.ServiceProvider
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+
+            var existingUser =
+                await userManager.FindByEmailAsync(email);
+
+            if (existingUser is not null)
+            {
+                _addStaffError =
+                    "An account with that email address already exists.";
+                return;
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                FullName = fullName,
+                EmailConfirmed = true,
+
+                // Required for the Enable / Disable account
+                // feature we will add next.
+                LockoutEnabled = true
+            };
+
+            var createResult =
+                await userManager.CreateAsync(
+                    user,
+                    _newStaffPassword);
+
+            if (!createResult.Succeeded)
+            {
+                _addStaffError =
+                    string.Join(
+                        " ",
+                        createResult.Errors
+                            .Select(error => error.Description));
+
+                return;
+            }
+
+            var roleResult =
+                await userManager.AddToRoleAsync(
+                    user,
+                    _newStaffRole);
+
+            if (!roleResult.Succeeded)
+            {
+                // Avoid leaving behind an account with no staff role.
+                await userManager.DeleteAsync(user);
+
+                _addStaffError =
+                    string.Join(
+                        " ",
+                        roleResult.Errors
+                            .Select(error => error.Description));
+
+                return;
+            }
+
+            var createdName =
+                user.FullName;
+
+            _showAddStaffForm = false;
+
+            ResetNewStaffForm();
+
+            await LoadStaffAccountsAsync();
+
+            _staffSuccess =
+                $"{createdName} was created successfully.";
+        }
+        catch
+        {
+            _addStaffError =
+                "We couldn't create the staff account. Please try again.";
+        }
+        finally
+        {
+            _isCreatingStaff = false;
         }
     }
 
