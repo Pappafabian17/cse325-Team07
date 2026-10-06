@@ -418,7 +418,10 @@
                 <button type="button"
                         class="btn btn-sm btn-pizzapp-primary"
                         @onclick="StartAddStaff"
-                        disabled="@(_showAddStaffForm || _isCreatingStaff)">
+                        disabled="@(_showAddStaffForm ||
+                            _isCreatingStaff ||
+                            _editingStaff is not null ||
+                            _isSavingStaff)">
                     <i class="bi bi-person-plus me-1"></i>
                     Add Staff Member
                 </button>
@@ -641,7 +644,8 @@
                                     <td class="text-end">
                                         <button type="button"
                                                 class="btn btn-sm btn-outline-secondary"
-                                                disabled>
+                                                @onclick="() => StartManageStaff(staff)"
+                                                disabled="@(_isSavingStaff || _isCreatingStaff)">
                                             Manage
                                         </button>
                                     </td>
@@ -651,6 +655,123 @@
                     </tbody>
                 </table>
             </div>
+            @if (_editingStaff is not null)
+            {
+                <div class="border-top pt-4 mt-3"
+                    @ref="_staffEditPanel"
+                    tabindex="-1"
+                    style="outline: none;">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="fw-bold mb-1">
+                                Manage Staff Member
+                            </h5>
+
+                            <p class="text-muted small mb-0">
+                                Update @_editingStaff.FullName's account information.
+                            </p>
+                        </div>
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                @onclick="CancelManageStaff"
+                                disabled="@_isSavingStaff">
+                            Cancel
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(_manageStaffError))
+                    {
+                        <div class="alert alert-danger"
+                            role="alert">
+                            @_manageStaffError
+                        </div>
+                    }
+
+                    <div class="row g-3">
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Full Name
+                            </label>
+
+                            <input type="text"
+                                class="form-control"
+                                @bind="_editingStaff.FullName"
+                                disabled="@_isSavingStaff" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Email
+                            </label>
+
+                            <input type="email"
+                                class="form-control"
+                                @bind="_editingStaff.Email"
+                                disabled="@_isSavingStaff" />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Role
+                            </label>
+
+                            <select class="form-select"
+                                    @bind="_editingStaff.Role"
+                                    disabled="@_isSavingStaff">
+                                <option value="Staff">Staff</option>
+                                <option value="Administrator">Administrator</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold d-block">
+                                Status
+                            </label>
+
+                            @if (_editingStaff.IsDisabled)
+                            {
+                                <span class="badge bg-secondary-subtle text-secondary">
+                                    Disabled
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success-subtle text-success">
+                                    Active
+                                </span>
+                            }
+
+                            <div class="form-text">
+                                Account status controls will be added next.
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <button type="button"
+                                    class="btn btn-pizzapp-primary"
+                                    @onclick="SaveManagedStaffAsync"
+                                    disabled="@_isSavingStaff">
+
+                                @if (_isSavingStaff)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-save me-1"></i>
+                                    <span>Save Changes</span>
+                                }
+
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            }
         </div>
     }
 
@@ -744,6 +865,16 @@
 
     private string _staffSuccess = string.Empty;
 
+    private StaffAccountViewModel? _editingStaff;
+
+    private bool _isSavingStaff;
+
+    private string _manageStaffError = string.Empty;
+
+    private ElementReference _staffEditPanel;
+
+    private bool _scrollToStaffEditPanel;
+
     private List<SpecialtyPizza> _specialtyPizzas = new();
 
     private bool _isLoadingMenu;
@@ -775,6 +906,12 @@
         {
             _scrollToEditPanel = false;
             await _editPanel.FocusAsync();
+        }
+
+        if (_scrollToStaffEditPanel && _editingStaff is not null)
+        {
+            _scrollToStaffEditPanel = false;
+            await _staffEditPanel.FocusAsync();
         }
     }
 
@@ -1175,6 +1312,225 @@
         finally
         {
             _isCreatingStaff = false;
+        }
+    }
+
+    private void StartManageStaff(StaffAccountViewModel staff)
+    {
+        _staffSuccess = string.Empty;
+        _manageStaffError = string.Empty;
+
+        _showAddStaffForm = false;
+        _addStaffError = string.Empty;
+
+        ResetNewStaffForm();
+
+        _editingStaff = new StaffAccountViewModel
+        {
+            Id = staff.Id,
+            FullName = staff.FullName,
+            Email = staff.Email,
+            Role = staff.Role,
+            IsDisabled = staff.IsDisabled
+        };
+
+        _scrollToStaffEditPanel = true;
+    }
+
+    private void CancelManageStaff()
+    {
+        if (_isSavingStaff)
+        {
+            return;
+        }
+
+        _editingStaff = null;
+        _manageStaffError = string.Empty;
+    }
+
+    private async Task SaveManagedStaffAsync()
+    {
+        if (_editingStaff is null ||
+            _isSavingStaff)
+        {
+            return;
+        }
+
+        _manageStaffError = string.Empty;
+        _staffSuccess = string.Empty;
+
+        var fullName =
+            _editingStaff.FullName.Trim();
+
+        var email =
+            _editingStaff.Email.Trim();
+
+        var requestedRole =
+            _editingStaff.Role;
+
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            _manageStaffError =
+                "Full name is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(email) ||
+            !email.Contains('@'))
+        {
+            _manageStaffError =
+                "Enter a valid email address.";
+            return;
+        }
+
+        if (requestedRole != "Staff" &&
+            requestedRole != "Administrator")
+        {
+            _manageStaffError =
+                "Select a valid staff role.";
+            return;
+        }
+
+        _isSavingStaff = true;
+
+        try
+        {
+            await using var scope =
+                ScopeFactory.CreateAsyncScope();
+
+            var userManager =
+                scope.ServiceProvider
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user =
+                await userManager.FindByIdAsync(
+                    _editingStaff.Id);
+
+            if (user is null)
+            {
+                _manageStaffError =
+                    "That staff account could not be found.";
+                return;
+            }
+
+            var existingEmailUser =
+                await userManager.FindByEmailAsync(email);
+
+            if (existingEmailUser is not null &&
+                existingEmailUser.Id != user.Id)
+            {
+                _manageStaffError =
+                    "Another account already uses that email address.";
+                return;
+            }
+
+            var roles =
+                await userManager.GetRolesAsync(user);
+
+            var currentRole =
+                roles.Contains("Administrator")
+                    ? "Administrator"
+                    : roles.Contains("Staff")
+                        ? "Staff"
+                        : string.Empty;
+
+            if (string.IsNullOrWhiteSpace(currentRole))
+            {
+                _manageStaffError =
+                    "This account does not have a valid staff role.";
+                return;
+            }
+
+            // Never allow the last Administrator to be demoted.
+            if (currentRole == "Administrator" &&
+                requestedRole == "Staff")
+            {
+                var administrators =
+                    await userManager.GetUsersInRoleAsync(
+                        "Administrator");
+
+                if (administrators.Count <= 1)
+                {
+                    _manageStaffError =
+                        "The last Administrator cannot be changed to Staff.";
+                    return;
+                }
+            }
+
+            user.FullName = fullName;
+            user.Email = email;
+            user.UserName = email;
+
+            var updateResult =
+                await userManager.UpdateAsync(user);
+
+            if (!updateResult.Succeeded)
+            {
+                _manageStaffError =
+                    string.Join(
+                        " ",
+                        updateResult.Errors
+                            .Select(error => error.Description));
+
+                return;
+            }
+
+            if (currentRole != requestedRole)
+            {
+                var addRoleResult =
+                    await userManager.AddToRoleAsync(
+                        user,
+                        requestedRole);
+
+                if (!addRoleResult.Succeeded)
+                {
+                    _manageStaffError =
+                        string.Join(
+                            " ",
+                            addRoleResult.Errors
+                                .Select(error => error.Description));
+
+                    return;
+                }
+
+                var removeRoleResult =
+                    await userManager.RemoveFromRoleAsync(
+                        user,
+                        currentRole);
+
+                if (!removeRoleResult.Succeeded)
+                {
+                    // Roll back the newly added role if the old role
+                    // could not be removed.
+                    await userManager.RemoveFromRoleAsync(
+                        user,
+                        requestedRole);
+
+                    _manageStaffError =
+                        string.Join(
+                            " ",
+                            removeRoleResult.Errors
+                                .Select(error => error.Description));
+
+                    return;
+                }
+            }
+
+            _editingStaff = null;
+
+            await LoadStaffAccountsAsync();
+
+            _staffSuccess =
+                $"{fullName} was updated successfully.";
+        }
+        catch
+        {
+            _manageStaffError =
+                "We couldn't update the staff account. Please try again.";
+        }
+        finally
+        {
+            _isSavingStaff = false;
         }
     }
 
