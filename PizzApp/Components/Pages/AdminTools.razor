@@ -267,7 +267,10 @@
             </div>
             @if (_editingPizza is not null)
             {
-                <div class="border-top pt-4 mt-3">
+                <div class="border-top pt-4 mt-3"
+                    @ref="_editPanel"
+                    tabindex="-1"
+                    style="outline: none;">
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
@@ -518,6 +521,10 @@
 
     private string _menuError = string.Empty;
 
+    private ElementReference _editPanel;
+
+    private bool _scrollToEditPanel;
+
     private SpecialtyPizza? _editingPizza;
 
     private bool _isSavingPizza;
@@ -530,6 +537,15 @@
     {
         await LoadSalesSummaryAsync();
         await LoadMenuAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_scrollToEditPanel && _editingPizza is not null)
+        {
+            _scrollToEditPanel = false;
+            await _editPanel.FocusAsync();
+        }
     }
 
     private async Task LoadSalesSummaryAsync()
@@ -697,6 +713,8 @@
             XLargePrice = pizza.XLargePrice,
             IsAvailable = pizza.IsAvailable
         };
+
+        _scrollToEditPanel = true;
     }
 
     private void CancelEditPizza()
