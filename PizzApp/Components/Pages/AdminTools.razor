@@ -1,4 +1,3 @@
-@page "/admin"
 @page "/admin/tools"
 @attribute [Authorize(Roles = "Administrator")]
 
@@ -6,9 +5,12 @@
 @using Microsoft.EntityFrameworkCore
 @using PizzApp.Data
 @using PizzApp.Models
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject IDbContextFactory<PizzAppDbContext> DbFactory
 @inject IServiceScopeFactory ScopeFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Admin Tools - PizzApp</PageTitle>
 
@@ -744,9 +746,33 @@
                                 </span>
                             }
 
-                            <div class="form-text">
-                                Account status controls will be added next.
+                            <div class="form-text mb-2">
+                                Disabled accounts cannot sign in again until they are re-enabled.
                             </div>
+
+                            <button type="button"
+                                    class="@(_editingStaff.IsDisabled
+                                        ? "btn btn-outline-success btn-sm"
+                                        : "btn btn-outline-danger btn-sm")"
+                                    @onclick="ToggleManagedStaffStatusAsync"
+                                    disabled="@_isUpdatingStaffStatus">
+
+                                @if (_isUpdatingStaffStatus)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Updating...</span>
+                                }
+                                else if (_editingStaff.IsDisabled)
+                                {
+                                    <i class="bi bi-unlock me-1"></i>
+                                    <span>Enable Account</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-lock me-1"></i>
+                                    <span>Disable Account</span>
+                                }
+                            </button>
                         </div>
 
                         <div class="col-12">
@@ -768,7 +794,75 @@
 
                             </button>
                         </div>
+                        <div class="col-12">
+                            <hr class="my-2" />
 
+                            <h6 class="fw-bold mb-3">
+                                Set New Password
+                            </h6>
+
+                            <p class="text-muted small">
+                                Set a new password for this staff account.
+                                The existing password cannot be viewed.
+                            </p>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                New Password
+                            </label>
+
+                            <input type="password"
+                                class="form-control"
+                                @bind="_managedStaffNewPassword"
+                                disabled="@_isResettingStaffPassword" />
+
+                            <div class="form-text">
+                                Minimum 6 characters.
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Confirm New Password
+                            </label>
+
+                            <input type="password"
+                                class="form-control"
+                                @bind="_managedStaffConfirmPassword"
+                                disabled="@_isResettingStaffPassword" />
+                        </div>
+
+                        <div class="col-12">
+                            <button type="button"
+                                    class="btn btn-outline-primary"
+                                    @onclick="ResetManagedStaffPasswordAsync"
+                                    disabled="@_isResettingStaffPassword">
+
+                                @if (_isResettingStaffPassword)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Setting Password...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-key me-1"></i>
+                                    <span>Set New Password</span>
+                                }
+
+                            </button>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_manageStaffSuccess))
+                        {
+                            <div class="col-12">
+                                <div class="alert alert-success mb-0"
+                                    role="alert">
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                    @_manageStaffSuccess
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             }
@@ -870,6 +964,16 @@
     private bool _isSavingStaff;
 
     private string _manageStaffError = string.Empty;
+
+    private string _manageStaffSuccess = string.Empty;
+
+    private string _managedStaffNewPassword = string.Empty;
+
+    private string _managedStaffConfirmPassword = string.Empty;
+
+    private bool _isResettingStaffPassword;
+
+    private bool _isUpdatingStaffStatus;
 
     private ElementReference _staffEditPanel;
 
@@ -1319,7 +1423,9 @@
     {
         _staffSuccess = string.Empty;
         _manageStaffError = string.Empty;
-
+        _manageStaffSuccess = string.Empty;
+        _managedStaffNewPassword = string.Empty;
+        _managedStaffConfirmPassword = string.Empty;
         _showAddStaffForm = false;
         _addStaffError = string.Empty;
 
@@ -1346,6 +1452,9 @@
 
         _editingStaff = null;
         _manageStaffError = string.Empty;
+        _manageStaffSuccess = string.Empty;
+        _managedStaffNewPassword = string.Empty;
+        _managedStaffConfirmPassword = string.Empty;
     }
 
     private async Task SaveManagedStaffAsync()
@@ -1449,10 +1558,27 @@
                     await userManager.GetUsersInRoleAsync(
                         "Administrator");
 
-                if (administrators.Count <= 1)
+                var hasOtherActiveAdministrator = false;
+
+                foreach (var administrator in administrators)
+                {
+                    if (administrator.Id == user.Id)
+                    {
+                        continue;
+                    }
+
+                    if (!await userManager.IsLockedOutAsync(
+                            administrator))
+                    {
+                        hasOtherActiveAdministrator = true;
+                        break;
+                    }
+                }
+
+                if (!hasOtherActiveAdministrator)
                 {
                     _manageStaffError =
-                        "The last Administrator cannot be changed to Staff.";
+                        "The last active Administrator cannot be changed to Staff.";
                     return;
                 }
             }
@@ -1531,6 +1657,265 @@
         finally
         {
             _isSavingStaff = false;
+        }
+    }
+
+    private async Task ResetManagedStaffPasswordAsync()
+    {
+        if (_editingStaff is null ||
+            _isResettingStaffPassword)
+        {
+            return;
+        }
+
+        _manageStaffError = string.Empty;
+        _manageStaffSuccess = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(
+                _managedStaffNewPassword))
+        {
+            _manageStaffError =
+                "Enter a new password.";
+            return;
+        }
+
+        if (_managedStaffNewPassword.Length < 6)
+        {
+            _manageStaffError =
+                "The new password must be at least 6 characters.";
+            return;
+        }
+
+        if (_managedStaffNewPassword !=
+            _managedStaffConfirmPassword)
+        {
+            _manageStaffError =
+                "The password confirmation does not match.";
+            return;
+        }
+
+        _isResettingStaffPassword = true;
+
+        try
+        {
+            await using var scope =
+                ScopeFactory.CreateAsyncScope();
+
+            var userManager =
+                scope.ServiceProvider
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user =
+                await userManager.FindByIdAsync(
+                    _editingStaff.Id);
+
+            if (user is null)
+            {
+                _manageStaffError =
+                    "That staff account could not be found.";
+                return;
+            }
+
+            var resetToken =
+                await userManager
+                    .GeneratePasswordResetTokenAsync(user);
+
+            var resetResult =
+                await userManager.ResetPasswordAsync(
+                    user,
+                    resetToken,
+                    _managedStaffNewPassword);
+
+            if (!resetResult.Succeeded)
+            {
+                _manageStaffError =
+                    string.Join(
+                        " ",
+                        resetResult.Errors
+                            .Select(error => error.Description));
+
+                return;
+            }
+
+            _managedStaffNewPassword =
+                string.Empty;
+
+            _managedStaffConfirmPassword =
+                string.Empty;
+
+            _manageStaffSuccess =
+                $"A new password was set for {_editingStaff.FullName}.";
+        }
+        catch
+        {
+            _manageStaffError =
+                "We couldn't set the new password. Please try again.";
+        }
+        finally
+        {
+            _isResettingStaffPassword = false;
+        }
+    }
+
+    private async Task ToggleManagedStaffStatusAsync()
+    {
+        if (_editingStaff is null ||
+            _isUpdatingStaffStatus)
+        {
+            return;
+        }
+
+        _manageStaffError = string.Empty;
+        _manageStaffSuccess = string.Empty;
+        _isUpdatingStaffStatus = true;
+
+        try
+        {
+            await using var scope =
+                ScopeFactory.CreateAsyncScope();
+
+            var userManager =
+                scope.ServiceProvider
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user =
+                await userManager.FindByIdAsync(
+                    _editingStaff.Id);
+
+            if (user is null)
+            {
+                _manageStaffError =
+                    "That staff account could not be found.";
+                return;
+            }
+
+            var isCurrentlyDisabled =
+                await userManager.IsLockedOutAsync(user);
+
+            if (isCurrentlyDisabled)
+            {
+                var enableResult =
+                    await userManager.SetLockoutEndDateAsync(
+                        user,
+                        null);
+
+                if (!enableResult.Succeeded)
+                {
+                    _manageStaffError =
+                        string.Join(
+                            " ",
+                            enableResult.Errors
+                                .Select(error => error.Description));
+
+                    return;
+                }
+
+                _editingStaff.IsDisabled = false;
+
+                _manageStaffSuccess =
+                    $"{_editingStaff.FullName} has been enabled.";
+            }
+            else
+            {
+                var authState =
+                    await AuthenticationStateProvider
+                        .GetAuthenticationStateAsync();
+
+                var currentUserId =
+                    authState.User.FindFirstValue(
+                        ClaimTypes.NameIdentifier);
+
+                if (user.Id == currentUserId)
+                {
+                    _manageStaffError =
+                        "You cannot disable your own account.";
+                    return;
+                }
+
+                var isAdministrator =
+                    await userManager.IsInRoleAsync(
+                        user,
+                        "Administrator");
+
+                if (isAdministrator)
+                {
+                    var administrators =
+                        await userManager.GetUsersInRoleAsync(
+                            "Administrator");
+
+                    var hasOtherActiveAdministrator = false;
+
+                    foreach (var administrator in administrators)
+                    {
+                        if (administrator.Id == user.Id)
+                        {
+                            continue;
+                        }
+
+                        if (!await userManager.IsLockedOutAsync(
+                                administrator))
+                        {
+                            hasOtherActiveAdministrator = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasOtherActiveAdministrator)
+                    {
+                        _manageStaffError =
+                            "The last active Administrator cannot be disabled.";
+                        return;
+                    }
+                }
+
+                var lockoutEnabledResult =
+                    await userManager.SetLockoutEnabledAsync(
+                        user,
+                        true);
+
+                if (!lockoutEnabledResult.Succeeded)
+                {
+                    _manageStaffError =
+                        string.Join(
+                            " ",
+                            lockoutEnabledResult.Errors
+                                .Select(error => error.Description));
+
+                    return;
+                }
+
+                var disableResult =
+                    await userManager.SetLockoutEndDateAsync(
+                        user,
+                        DateTimeOffset.UtcNow.AddYears(100));
+
+                if (!disableResult.Succeeded)
+                {
+                    _manageStaffError =
+                        string.Join(
+                            " ",
+                            disableResult.Errors
+                                .Select(error => error.Description));
+
+                    return;
+                }
+
+                _editingStaff.IsDisabled = true;
+
+                _manageStaffSuccess =
+                    $"{_editingStaff.FullName} has been disabled.";
+            }
+
+            await LoadStaffAccountsAsync();
+        }
+        catch
+        {
+            _manageStaffError =
+                "We couldn't update that account's status. Please try again.";
+        }
+        finally
+        {
+            _isUpdatingStaffStatus = false;
         }
     }
 
