@@ -22,6 +22,8 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
+    public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -111,6 +113,15 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany(order => order.Items)
                 .HasForeignKey(item => item.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StoreSettings>(entity =>
+        {
+            entity.Property(settings => settings.DeliveryFee)
+                .HasPrecision(10, 2);
+
+            entity.Property(settings => settings.SalesTaxPercent)
+                .HasPrecision(5, 2);
         });
     }
 }

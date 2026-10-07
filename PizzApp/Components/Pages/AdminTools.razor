@@ -874,27 +874,106 @@
     {
         <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
             <h4 class="h5 fw-bold mb-3">Store & Ordering Configuration</h4>
-            <div class="row g-3">
-                <div class="col-12 col-md-6">
-                    <label class="form-label small fw-semibold text-dark">Store Operating Hours</label>
-                    <input type="text" class="form-control" value="11:00 AM – 10:00 PM Daily" />
+
+            @if (_isLoadingSettings)
+            {
+                <div class="text-muted">
+                    <span class="spinner-border spinner-border-sm me-2"></span>
+                    Loading store settings...
                 </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label small fw-semibold text-dark">Delivery Radius (Miles)</label>
-                    <input type="number" class="form-control" value="8" />
+            }
+            else if (_storeSettings is not null)
+            {
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small fw-semibold text-dark">
+                            Store Operating Hours
+                        </label>
+                        <input type="text"
+                            class="form-control"
+                            @bind="_storeSettings.OperatingHours"
+                            disabled="@_isSavingSettings" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small fw-semibold text-dark">
+                            Delivery Radius (Miles)
+                        </label>
+                        <input type="number"
+                            min="1"
+                            max="100"
+                            class="form-control"
+                            @bind="_storeSettings.DeliveryRadiusMiles"
+                            disabled="@_isSavingSettings" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small fw-semibold text-dark">
+                            Standard Delivery Fee ($)
+                        </label>
+                        <input type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            class="form-control"
+                            @bind="_storeSettings.DeliveryFee"
+                            disabled="@_isSavingSettings" />
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small fw-semibold text-dark">
+                            Sales Tax Rate (%)
+                        </label>
+                        <input type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            class="form-control"
+                            @bind="_storeSettings.SalesTaxPercent"
+                            disabled="@_isSavingSettings" />
+                    </div>
+
+                    <div class="col-12 mt-3">
+                        @if (!string.IsNullOrWhiteSpace(_settingsSuccess))
+                        {
+                            <div class="alert alert-success mb-3"
+                                role="alert">
+                                @_settingsSuccess
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_settingsError))
+                        {
+                            <div class="alert alert-danger mb-3"
+                                role="alert">
+                                @_settingsError
+                            </div>
+                        }
+
+                        <button type="button"
+                                class="btn btn-pizzapp-primary"
+                                @onclick="SaveStoreSettingsAsync"
+                                disabled="@_isSavingSettings">
+                            @if (_isSavingSettings)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <span>Saving...</span>
+                            }
+                            else
+                            {
+                                <span>Save Settings</span>
+                            }
+                        </button>
+                    </div>
                 </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label small fw-semibold text-dark">Standard Delivery Fee ($)</label>
-                    <input type="text" class="form-control" value="3.50" />
+            }
+            else if (!string.IsNullOrWhiteSpace(_settingsError))
+            {
+                <div class="alert alert-danger mb-0"
+                    role="alert">
+                    @_settingsError
                 </div>
-                <div class="col-12 col-md-6">
-                    <label class="form-label small fw-semibold text-dark">Sales Tax Rate (%)</label>
-                    <input type="text" class="form-control" value="6.0" />
-                </div>
-                <div class="col-12 mt-3">
-                    <button class="btn btn-pizzapp-primary">Save Settings</button>
-                </div>
-            </div>
+            }
         </div>
     }
 </div>
@@ -997,11 +1076,145 @@
 
     private readonly HashSet<int> _updatingPizzaIds = new();
 
+    private StoreSettings? _storeSettings;
+
+    private bool _isLoadingSettings = true;
+
+    private string _settingsError = string.Empty;
+
+    private string _settingsSuccess = string.Empty;
+
+    private bool _isSavingSettings;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadSalesSummaryAsync();
         await LoadMenuAsync();
         await LoadStaffAccountsAsync();
+        await LoadStoreSettingsAsync();
+    }
+
+    private async Task LoadStoreSettingsAsync()
+    {
+        _isLoadingSettings = true;
+        _settingsError = string.Empty;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            _storeSettings =
+                await db.StoreSettings
+                    .AsNoTracking()
+                    .OrderBy(settings => settings.Id)
+                    .FirstOrDefaultAsync();
+
+            if (_storeSettings is null)
+            {
+                _settingsError =
+                    "Store settings could not be found.";
+            }
+        }
+        catch
+        {
+            _settingsError =
+                "We couldn't load the store settings. Please try again.";
+        }
+        finally
+        {
+            _isLoadingSettings = false;
+        }
+    }
+
+    private async Task SaveStoreSettingsAsync()
+    {
+        if (_storeSettings is null)
+        {
+            return;
+        }
+
+        _settingsError = string.Empty;
+        _settingsSuccess = string.Empty;
+
+        var operatingHours =
+            _storeSettings.OperatingHours?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(operatingHours))
+        {
+            _settingsError =
+                "Store operating hours are required.";
+            return;
+        }
+
+        if (_storeSettings.DeliveryRadiusMiles < 1 ||
+            _storeSettings.DeliveryRadiusMiles > 100)
+        {
+            _settingsError =
+                "Delivery radius must be between 1 and 100 miles.";
+            return;
+        }
+
+        if (_storeSettings.DeliveryFee < 0 ||
+            _storeSettings.DeliveryFee > 100)
+        {
+            _settingsError =
+                "Delivery fee must be between $0.00 and $100.00.";
+            return;
+        }
+
+        if (_storeSettings.SalesTaxPercent < 0 ||
+            _storeSettings.SalesTaxPercent > 100)
+        {
+            _settingsError =
+                "Sales tax rate must be between 0% and 100%.";
+            return;
+        }
+
+        _isSavingSettings = true;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            var settings =
+                await db.StoreSettings
+                    .SingleOrDefaultAsync(
+                        item => item.Id == _storeSettings.Id);
+
+            if (settings is null)
+            {
+                _settingsError =
+                    "Store settings could not be found.";
+                return;
+            }
+
+            settings.OperatingHours = operatingHours;
+            settings.DeliveryRadiusMiles =
+                _storeSettings.DeliveryRadiusMiles;
+            settings.DeliveryFee =
+                _storeSettings.DeliveryFee;
+            settings.SalesTaxPercent =
+                _storeSettings.SalesTaxPercent;
+
+            await db.SaveChangesAsync();
+
+            _storeSettings.OperatingHours =
+                operatingHours;
+
+            _settingsSuccess =
+                "Store settings saved successfully.";
+        }
+        catch
+        {
+            _settingsError =
+                "We couldn't save the store settings. Please try again.";
+        }
+        finally
+        {
+            _isSavingSettings = false;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

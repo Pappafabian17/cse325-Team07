@@ -73,6 +73,15 @@ a:hover {
     transform: translateY(-1px);
 }
 
+.btn.btn-pizzapp-primary:disabled {
+    background-color: var(--pizzapp-primary);
+    border-color: var(--pizzapp-primary);
+    color: #ffffff !important;
+    opacity: 0.55;
+    box-shadow: none;
+    transform: none;
+}
+
 .btn-pizzapp-secondary {
     background-color: var(--pizzapp-secondary);
     color: var(--pizzapp-dark) !important;
