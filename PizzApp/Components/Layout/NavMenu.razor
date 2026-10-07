@@ -40,7 +40,7 @@
 
             <!-- Role-Based Navigation: Administrator -->
             <AuthorizeView Roles="Administrator">
-                <NavLink href="admin" class="nav-item-link nav-item-admin">
+                <NavLink href="admin/tools" class="nav-item-link nav-item-admin">
                     <i class="bi bi-shield-lock me-1"></i> Admin Tools
                 </NavLink>
             </AuthorizeView>
@@ -155,7 +155,7 @@
 
                 <!-- Role-Based Navigation: Administrator -->
                 <AuthorizeView Roles="Administrator">
-                    <NavLink href="admin" class="mobile-nav-link mobile-nav-admin" @onclick="CloseMobileMenu">
+                    <NavLink href="admin/tools" class="mobile-nav-link mobile-nav-admin" @onclick="CloseMobileMenu">
                         <i class="bi bi-shield-lock me-2"></i> Admin Tools
                     </NavLink>
                 </AuthorizeView>

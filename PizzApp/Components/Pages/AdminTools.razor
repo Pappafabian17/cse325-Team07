@@ -1,4 +1,3 @@
-@page "/admin"
 @page "/admin/tools"
 @attribute [Authorize(Roles = "Administrator")]
 
@@ -768,7 +767,75 @@
 
                             </button>
                         </div>
+                        <div class="col-12">
+                            <hr class="my-2" />
 
+                            <h6 class="fw-bold mb-3">
+                                Set New Password
+                            </h6>
+
+                            <p class="text-muted small">
+                                Set a new password for this staff account.
+                                The existing password cannot be viewed.
+                            </p>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                New Password
+                            </label>
+
+                            <input type="password"
+                                class="form-control"
+                                @bind="_managedStaffNewPassword"
+                                disabled="@_isResettingStaffPassword" />
+
+                            <div class="form-text">
+                                Minimum 6 characters.
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">
+                                Confirm New Password
+                            </label>
+
+                            <input type="password"
+                                class="form-control"
+                                @bind="_managedStaffConfirmPassword"
+                                disabled="@_isResettingStaffPassword" />
+                        </div>
+
+                        <div class="col-12">
+                            <button type="button"
+                                    class="btn btn-outline-primary"
+                                    @onclick="ResetManagedStaffPasswordAsync"
+                                    disabled="@_isResettingStaffPassword">
+
+                                @if (_isResettingStaffPassword)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Setting Password...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-key me-1"></i>
+                                    <span>Set New Password</span>
+                                }
+
+                            </button>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_manageStaffSuccess))
+                        {
+                            <div class="col-12">
+                                <div class="alert alert-success mb-0"
+                                    role="alert">
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                    @_manageStaffSuccess
+                                </div>
+                            </div>
+                        }
                     </div>
                 </div>
             }
@@ -870,6 +937,14 @@
     private bool _isSavingStaff;
 
     private string _manageStaffError = string.Empty;
+
+    private string _manageStaffSuccess = string.Empty;
+
+    private string _managedStaffNewPassword = string.Empty;
+
+    private string _managedStaffConfirmPassword = string.Empty;
+
+    private bool _isResettingStaffPassword;
 
     private ElementReference _staffEditPanel;
 
@@ -1319,7 +1394,9 @@
     {
         _staffSuccess = string.Empty;
         _manageStaffError = string.Empty;
-
+        _manageStaffSuccess = string.Empty;
+        _managedStaffNewPassword = string.Empty;
+        _managedStaffConfirmPassword = string.Empty;
         _showAddStaffForm = false;
         _addStaffError = string.Empty;
 
@@ -1346,6 +1423,9 @@
 
         _editingStaff = null;
         _manageStaffError = string.Empty;
+        _manageStaffSuccess = string.Empty;
+        _managedStaffNewPassword = string.Empty;
+        _managedStaffConfirmPassword = string.Empty;
     }
 
     private async Task SaveManagedStaffAsync()
@@ -1531,6 +1611,103 @@
         finally
         {
             _isSavingStaff = false;
+        }
+    }
+
+    private async Task ResetManagedStaffPasswordAsync()
+    {
+        if (_editingStaff is null ||
+            _isResettingStaffPassword)
+        {
+            return;
+        }
+
+        _manageStaffError = string.Empty;
+        _manageStaffSuccess = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(
+                _managedStaffNewPassword))
+        {
+            _manageStaffError =
+                "Enter a new password.";
+            return;
+        }
+
+        if (_managedStaffNewPassword.Length < 6)
+        {
+            _manageStaffError =
+                "The new password must be at least 6 characters.";
+            return;
+        }
+
+        if (_managedStaffNewPassword !=
+            _managedStaffConfirmPassword)
+        {
+            _manageStaffError =
+                "The password confirmation does not match.";
+            return;
+        }
+
+        _isResettingStaffPassword = true;
+
+        try
+        {
+            await using var scope =
+                ScopeFactory.CreateAsyncScope();
+
+            var userManager =
+                scope.ServiceProvider
+                    .GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user =
+                await userManager.FindByIdAsync(
+                    _editingStaff.Id);
+
+            if (user is null)
+            {
+                _manageStaffError =
+                    "That staff account could not be found.";
+                return;
+            }
+
+            var resetToken =
+                await userManager
+                    .GeneratePasswordResetTokenAsync(user);
+
+            var resetResult =
+                await userManager.ResetPasswordAsync(
+                    user,
+                    resetToken,
+                    _managedStaffNewPassword);
+
+            if (!resetResult.Succeeded)
+            {
+                _manageStaffError =
+                    string.Join(
+                        " ",
+                        resetResult.Errors
+                            .Select(error => error.Description));
+
+                return;
+            }
+
+            _managedStaffNewPassword =
+                string.Empty;
+
+            _managedStaffConfirmPassword =
+                string.Empty;
+
+            _manageStaffSuccess =
+                $"A new password was set for {_editingStaff.FullName}.";
+        }
+        catch
+        {
+            _manageStaffError =
+                "We couldn't set the new password. Please try again.";
+        }
+        finally
+        {
+            _isResettingStaffPassword = false;
         }
     }
 
