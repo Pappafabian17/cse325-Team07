@@ -6,9 +6,12 @@
 @using System.Security.Claims
 @using PizzApp.Data
 @using PizzApp.Models
+@using PizzApp.Services
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IDbContextFactory<PizzAppDbContext> DbFactory
+@inject CartService CartService
+@inject NavigationManager Navigation
 
 @attribute [Authorize(Roles = "Customer,Administrator")]
 
@@ -45,10 +48,21 @@
             </p>
         </div>
     }
-    else if (!string.IsNullOrWhiteSpace(_errorMessage))
+    @if (!string.IsNullOrWhiteSpace(_successMessage))
     {
-        <div class="alert alert-danger" role="alert">
-            @_errorMessage
+        <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2 mb-4 rounded-3" role="alert">
+            <i class="bi bi-check-circle-fill flex-shrink-0 fs-5"></i>
+            <div>@_successMessage</div>
+            <button type="button" class="btn-close ms-auto" @onclick="() => _successMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2 mb-4 rounded-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0 fs-5"></i>
+            <div>@_errorMessage</div>
+            <button type="button" class="btn-close ms-auto" @onclick="() => _errorMessage = string.Empty"></button>
         </div>
     }
     else if (_orders.Count == 0)
@@ -171,6 +185,37 @@
 
                 </div>
 
+                @if (ActiveOrder.Status == OrderStatus.Received)
+                {
+                    <div class="mt-4 pt-3 border-top d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                        <span class="text-muted small">
+                            <i class="bi bi-info-circle text-primary me-1"></i>
+                            Your order has just been received and is eligible for cancellation before baking begins.
+                        </span>
+
+                        <button type="button"
+                                class="btn btn-outline-danger btn-sm px-3"
+                                @onclick="() => OpenCancelModal(ActiveOrder)">
+                            <i class="bi bi-x-circle me-1"></i> Cancel Order
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="mt-4 pt-3 border-top d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 text-muted small">
+                        <span>
+                            <i class="bi bi-lock-fill me-1 text-secondary"></i>
+                            @(ActiveOrder.Status == OrderStatus.Baking
+                                ? "Your pizza is currently baking in the oven and can no longer be cancelled."
+                                : "Your order is being prepared for fulfillment and can no longer be cancelled.")
+                        </span>
+
+                        <span class="badge bg-light text-muted border py-2 px-3 rounded-pill">
+                            Cancellation Window Closed
+                        </span>
+                    </div>
+                }
+
             </div>
         }
 
@@ -236,13 +281,23 @@
 
                                     <td class="text-end pe-4">
 
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-secondary"
-                                                @onclick="() => ToggleReceipt(order.Id)">
-                                            @(_expandedOrderId == order.Id
-                                                ? "Hide Receipt"
-                                                : "View Receipt")
-                                        </button>
+                                        <div class="d-inline-flex gap-2">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-secondary"
+                                                    @onclick="() => ToggleReceipt(order.Id)">
+                                                @(_expandedOrderId == order.Id
+                                                    ? "Hide Receipt"
+                                                    : "View Receipt")
+                                            </button>
+
+                                            <button type="button"
+                                                    class="btn btn-sm btn-pizzapp-secondary fw-semibold"
+                                                    @onclick="() => PrepareReorderAsync(order)"
+                                                    disabled="@_isLoadingReorder"
+                                                    title="Replicate this order using current pricing and menu availability">
+                                                <i class="bi bi-arrow-repeat me-1"></i> Order Again
+                                            </button>
+                                        </div>
 
                                     </td>
                                 </tr>
@@ -351,6 +406,15 @@
                                                             $@order.Total.ToString("0.00")
                                                         </div>
 
+                                                        <div class="mt-3">
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-pizzapp-secondary fw-semibold w-100"
+                                                                    @onclick="() => PrepareReorderAsync(order)"
+                                                                    disabled="@_isLoadingReorder">
+                                                                <i class="bi bi-arrow-repeat me-1"></i> Order Again
+                                                            </button>
+                                                        </div>
+
                                                     </div>
 
                                                 </div>
@@ -373,6 +437,201 @@
         }
     }
 
+    <!-- CANCELLATION CONFIRMATION MODAL -->
+    @if (_orderToCancel != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1055;">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow rounded-4 p-2">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            Cancel Order #@_orderToCancel.OrderNumber
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseCancelModal" disabled="@_isProcessingCancel"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                        <p class="text-dark mb-2">
+                            Are you sure you want to cancel this order? It is currently in the <strong>Received</strong> stage and is eligible for cancellation.
+                        </p>
+                        <p class="text-muted small mb-3">
+                            Once cancelled, your full payment of <strong>$@_orderToCancel.Total.ToString("0.00")</strong> will be refunded to your account.
+                        </p>
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold text-dark">Reason for cancellation (optional):</label>
+                            <select class="form-select" @bind="_cancellationReason">
+                                <option value="Changed my mind">Changed my mind</option>
+                                <option value="Ordered by mistake">Ordered by mistake</option>
+                                <option value="Delivery time too long">Delivery time too long</option>
+                                <option value="Need to change items">Need to change items</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CloseCancelModal" disabled="@_isProcessingCancel">
+                            Keep Order
+                        </button>
+                        <button type="button" class="btn btn-danger" @onclick="ConfirmCancelOrderAsync" disabled="@_isProcessingCancel">
+                            @if (_isProcessingCancel)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                <span>Cancelling...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-x-circle me-1"></i>
+                                <span>Yes, Cancel Order</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- ORDER AGAIN / REPLICATE ORDER MODAL -->
+    @if (_reorderPreview != null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1055;">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 shadow rounded-4 p-2">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                            <i class="bi bi-arrow-repeat text-danger"></i>
+                            Order Again &bull; Replicate Order #@_reorderPreview.SourceOrder.OrderNumber
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseReorderModal" disabled="@_isProcessingReorder"></button>
+                    </div>
+                    <div class="modal-body py-3">
+                        <p class="text-muted small mb-3">
+                            Replicating your previous order using <strong>current database pricing and menu availability</strong>.
+                        </p>
+
+                        @if (!_reorderPreview.IsAllAvailable)
+                        {
+                            <div class="alert alert-danger d-flex align-items-center gap-2 py-2 px-3 mb-3 rounded-3 small">
+                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 fs-5"></i>
+                                <div>
+                                    <strong>Some items are currently unavailable:</strong>
+                                    <ul class="mb-0 ps-3 mt-1">
+                                        @foreach (var unavail in _reorderPreview.UnavailableReasons)
+                                        {
+                                            <li>@unavail</li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mb-3 rounded-3 small">
+                                <i class="bi bi-check-circle-fill flex-shrink-0"></i>
+                                <div>All pizzas and ingredients are in stock and available at today's menu prices.</div>
+                            </div>
+                        }
+
+                        <!-- Items list with current pricing -->
+                        <div class="table-responsive mb-3">
+                            <table class="table align-middle table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Size / Details</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-end">Current Price</th>
+                                        <th class="text-end">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in _reorderPreview.Items)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">@item.PizzaName</td>
+                                            <td class="small text-muted">
+                                                @item.Size
+                                                @if (item.IsCustom && !string.IsNullOrWhiteSpace(item.Toppings))
+                                                {
+                                                    <div>Toppings: @item.Toppings</div>
+                                                }
+                                            </td>
+                                            <td class="text-center">@item.Quantity</td>
+                                            <td class="text-end fw-semibold">
+                                                $@item.TotalPrice.ToString("0.00")
+                                                @if (item.UnitPriceChanged)
+                                                {
+                                                    <div class="text-muted" style="font-size: 0.72rem;">
+                                                        (was $@item.OldUnitPrice.ToString("0.00"))
+                                                    </div>
+                                                }
+                                            </td>
+                                            <td class="text-end">
+                                                @if (item.IsAvailable)
+                                                {
+                                                    <span class="badge bg-success-subtle text-success">Available</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger-subtle text-danger">Unavailable</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pricing summary -->
+                        <div class="bg-light p-3 rounded-3 small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Subtotal:</span>
+                                <span class="fw-semibold">$@_reorderPreview.Subtotal.ToString("0.00")</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Sales Tax (6%):</span>
+                                <span class="fw-semibold">$@_reorderPreview.Tax.ToString("0.00")</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Fulfillment:</span>
+                                <span class="fw-semibold">
+                                    @_reorderPreview.SourceOrder.FulfillmentType
+                                    (@(_reorderPreview.DeliveryFee > 0 ? $"${_reorderPreview.DeliveryFee:0.00}" : "Free"))
+                                </span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="d-flex justify-content-between fs-6 fw-bold">
+                                <span>New Total:</span>
+                                <span class="text-danger">$@_reorderPreview.Total.ToString("0.00")</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CloseReorderModal" disabled="@_isProcessingReorder">
+                            Cancel
+                        </button>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-danger" @onclick="ReorderToCart" disabled="@(!_reorderPreview.IsAllAvailable || _isProcessingReorder)">
+                                <i class="bi bi-cart-plus me-1"></i> Add to Cart & Edit
+                            </button>
+                            <button type="button" class="btn btn-pizzapp-primary" @onclick="ConfirmReorderDirectlyAsync" disabled="@(!_reorderPreview.IsAllAvailable || _isProcessingReorder)">
+                                @if (_isProcessingReorder)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                    <span>Placing Order...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check2-circle me-1"></i>
+                                    <span>Reorder Now ($@_reorderPreview.Total.ToString("0.00"))</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
 </div>
 
 @code {
@@ -384,7 +643,17 @@
 
     private string _errorMessage = string.Empty;
 
+    private string _successMessage = string.Empty;
+
     private int? _expandedOrderId;
+
+    private Order? _orderToCancel;
+    private string _cancellationReason = "Changed my mind";
+    private bool _isProcessingCancel;
+
+    private ReorderPreviewModel? _reorderPreview;
+    private bool _isLoadingReorder;
+    private bool _isProcessingReorder;
 
     private CancellationTokenSource? _refreshCancellation;
 
@@ -693,5 +962,344 @@
         }
 
         _refreshCancellation?.Dispose();
+    }
+
+    private void OpenCancelModal(Order order)
+    {
+        _orderToCancel = order;
+        _cancellationReason = "Changed my mind";
+    }
+
+    private void CloseCancelModal()
+    {
+        if (_isProcessingCancel)
+        {
+            return;
+        }
+
+        _orderToCancel = null;
+    }
+
+    private async Task ConfirmCancelOrderAsync()
+    {
+        if (_orderToCancel == null || _isProcessingCancel)
+        {
+            return;
+        }
+
+        _isProcessingCancel = true;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var dbOrder = await db.Orders.FirstOrDefaultAsync(o => o.Id == _orderToCancel.Id);
+
+            if (dbOrder == null)
+            {
+                _errorMessage = "That order could not be found.";
+            }
+            else if (dbOrder.Status != OrderStatus.Received)
+            {
+                _errorMessage = $"Order #{dbOrder.OrderNumber} can no longer be cancelled because it is already in the '{GetStatusLabel(dbOrder)}' stage.";
+            }
+            else
+            {
+                dbOrder.Status = OrderStatus.Cancelled;
+                await db.SaveChangesAsync();
+
+                _successMessage = $"Order #{dbOrder.OrderNumber} has been successfully cancelled. Your refund has been initiated.";
+                _orderToCancel = null;
+                await LoadOrdersAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to cancel order: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessingCancel = false;
+        }
+    }
+
+    private void CloseReorderModal()
+    {
+        if (_isProcessingReorder)
+        {
+            return;
+        }
+
+        _reorderPreview = null;
+    }
+
+    private async Task PrepareReorderAsync(Order sourceOrder)
+    {
+        _errorMessage = string.Empty;
+        _successMessage = string.Empty;
+        _isLoadingReorder = true;
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var specialtyPizzas = await db.SpecialtyPizzas.AsNoTracking().ToListAsync();
+            var toppings = await db.Toppings.AsNoTracking().ToListAsync();
+
+            var preview = new ReorderPreviewModel
+            {
+                SourceOrder = sourceOrder
+            };
+
+            foreach (var item in sourceOrder.Items)
+            {
+                var reorderItem = new ReorderItemModel
+                {
+                    SpecialtyPizzaId = item.SpecialtyPizzaId,
+                    IsCustom = item.IsCustom,
+                    PizzaName = item.PizzaName,
+                    Size = item.Size,
+                    Crust = item.Crust,
+                    Sauce = item.Sauce,
+                    Cheese = item.Cheese,
+                    Toppings = item.Toppings ?? string.Empty,
+                    Quantity = item.Quantity,
+                    OldUnitPrice = item.UnitPrice
+                };
+
+                if (!item.IsCustom)
+                {
+                    var cleanName = item.PizzaName.Replace(" Pizza", "", StringComparison.OrdinalIgnoreCase).Trim();
+                    var specPizza = specialtyPizzas.FirstOrDefault(p =>
+                        (item.SpecialtyPizzaId.HasValue && p.Id == item.SpecialtyPizzaId.Value) ||
+                        string.Equals(p.Name, cleanName, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(p.Name, item.PizzaName, StringComparison.OrdinalIgnoreCase));
+
+                    if (specPizza == null)
+                    {
+                        reorderItem.IsAvailable = false;
+                        reorderItem.UnavailableReason = $"'{item.PizzaName}' is no longer on the menu.";
+                        reorderItem.UnitPrice = item.UnitPrice;
+                        reorderItem.BasePrice = item.UnitPrice;
+                        reorderItem.ImagePath = "images/pizza-hero.png";
+                    }
+                    else if (!specPizza.IsAvailable)
+                    {
+                        reorderItem.IsAvailable = false;
+                        reorderItem.UnavailableReason = $"'{specPizza.Name}' is currently sold out.";
+                        reorderItem.UnitPrice = specPizza.SmallPrice;
+                        reorderItem.BasePrice = specPizza.SmallPrice;
+                        reorderItem.ImagePath = specPizza.ImagePath;
+                    }
+                    else
+                    {
+                        reorderItem.IsAvailable = true;
+                        reorderItem.ImagePath = specPizza.ImagePath;
+                        reorderItem.SpecialtyPizzaId = specPizza.Id;
+                        reorderItem.PizzaName = specPizza.Name;
+
+                        decimal currentPrice = item.Size switch
+                        {
+                            "Small" => specPizza.SmallPrice,
+                            "Medium" => specPizza.MediumPrice,
+                            "Large" => specPizza.LargePrice,
+                            "X-Large" or "Extra Large" or "XL" => specPizza.XLargePrice,
+                            _ => specPizza.SmallPrice
+                        };
+
+                        reorderItem.BasePrice = currentPrice;
+                        reorderItem.UnitPrice = currentPrice;
+                    }
+                }
+                else
+                {
+                    decimal basePrice = PizzaRules.BasePriceFor(item.Size);
+                    reorderItem.BasePrice = basePrice;
+                    reorderItem.ImagePath = "/images/builder/base-cheese.png";
+
+                    decimal toppingsTotal = 0m;
+                    var toppingNames = (item.Toppings ?? string.Empty)
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                    foreach (var toppingName in toppingNames)
+                    {
+                        var toppingEntity = toppings.FirstOrDefault(t =>
+                            string.Equals(t.Name, toppingName, StringComparison.OrdinalIgnoreCase));
+
+                        if (toppingEntity == null)
+                        {
+                            reorderItem.IsAvailable = false;
+                            reorderItem.UnavailableReason = $"Topping '{toppingName}' is no longer offered.";
+                        }
+                        else if (!toppingEntity.IsAvailable)
+                        {
+                            reorderItem.IsAvailable = false;
+                            reorderItem.UnavailableReason = $"Topping '{toppingEntity.Name}' is currently out of stock.";
+                        }
+                        else
+                        {
+                            toppingsTotal += toppingEntity.Price;
+                            reorderItem.ToppingEntities.Add(toppingEntity);
+                        }
+                    }
+
+                    reorderItem.UnitPrice = basePrice + toppingsTotal;
+                }
+
+                preview.Items.Add(reorderItem);
+            }
+
+            preview.Subtotal = preview.Items.Sum(i => i.TotalPrice);
+            preview.Tax = Math.Round(preview.Subtotal * 0.06m, 2);
+            preview.DeliveryFee = sourceOrder.FulfillmentType == FulfillmentType.Delivery
+                ? CartService.DeliveryFee
+                : 0m;
+            preview.Total = preview.Subtotal + preview.Tax + preview.DeliveryFee;
+
+            _reorderPreview = preview;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to check menu pricing: {ex.Message}";
+        }
+        finally
+        {
+            _isLoadingReorder = false;
+        }
+    }
+
+    private async Task ConfirmReorderDirectlyAsync()
+    {
+        if (_reorderPreview == null || !_reorderPreview.IsAllAvailable || _isProcessingReorder)
+        {
+            return;
+        }
+
+        _isProcessingReorder = true;
+        _errorMessage = string.Empty;
+
+        try
+        {
+            var source = _reorderPreview.SourceOrder;
+
+            var newOrder = new Order
+            {
+                CustomerId = _customerId!,
+                CustomerName = source.CustomerName,
+                CustomerEmail = source.CustomerEmail,
+                FulfillmentType = source.FulfillmentType,
+                DeliveryAddress = source.DeliveryAddress,
+                PlacedAt = DateTimeOffset.UtcNow,
+                Status = OrderStatus.Received,
+                Subtotal = _reorderPreview.Subtotal,
+                Tax = _reorderPreview.Tax,
+                DeliveryFee = _reorderPreview.DeliveryFee,
+                Total = _reorderPreview.Total,
+                Items = _reorderPreview.Items.Select(item => new OrderItem
+                {
+                    SpecialtyPizzaId = !item.IsCustom ? item.SpecialtyPizzaId : null,
+                    IsCustom = item.IsCustom,
+                    PizzaName = item.PizzaName,
+                    Size = item.Size,
+                    Crust = item.Crust,
+                    Sauce = item.Sauce,
+                    Cheese = item.Cheese,
+                    Toppings = item.Toppings,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    TotalPrice = item.TotalPrice
+                }).ToList()
+            };
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.Orders.Add(newOrder);
+            await db.SaveChangesAsync();
+
+            _successMessage = $"🎉 Order #{newOrder.OrderNumber} placed! Your previous order has been replicated with current database pricing (${newOrder.Total:0.00}). It is now in preparation.";
+            _reorderPreview = null;
+            await LoadOrdersAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to place replicated order: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessingReorder = false;
+        }
+    }
+
+    private void ReorderToCart()
+    {
+        if (_reorderPreview == null || !_reorderPreview.IsAllAvailable)
+        {
+            return;
+        }
+
+        foreach (var item in _reorderPreview.Items)
+        {
+            var cartItem = new CartItem
+            {
+                IsCustom = item.IsCustom,
+                PizzaId = item.SpecialtyPizzaId ?? 0,
+                PizzaName = item.PizzaName,
+                ImagePath = item.ImagePath,
+                Size = item.Size,
+                Crust = item.Crust,
+                Sauce = item.Sauce,
+                Cheese = item.Cheese,
+                BasePrice = item.BasePrice,
+                Quantity = item.Quantity,
+                Toppings = item.ToppingEntities.Select(t => new Topping
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                    ImagePath = t.ImagePath,
+                    Price = t.Price,
+                    IsAvailable = t.IsAvailable
+                }).ToList()
+            };
+
+            CartService.AddItem(cartItem);
+        }
+
+        _reorderPreview = null;
+        Navigation.NavigateTo("/cart");
+    }
+
+    private class ReorderPreviewModel
+    {
+        public Order SourceOrder { get; set; } = null!;
+        public List<ReorderItemModel> Items { get; set; } = new();
+        public decimal Subtotal { get; set; }
+        public decimal Tax { get; set; }
+        public decimal DeliveryFee { get; set; }
+        public decimal Total { get; set; }
+        public bool IsAllAvailable => Items.All(i => i.IsAvailable);
+        public List<string> UnavailableReasons => Items
+            .Where(i => !i.IsAvailable && !string.IsNullOrWhiteSpace(i.UnavailableReason))
+            .Select(i => i.UnavailableReason!)
+            .ToList();
+    }
+
+    private class ReorderItemModel
+    {
+        public int? SpecialtyPizzaId { get; set; }
+        public bool IsCustom { get; set; }
+        public string PizzaName { get; set; } = string.Empty;
+        public string ImagePath { get; set; } = string.Empty;
+        public string Size { get; set; } = "Medium";
+        public string Crust { get; set; } = "Hand Tossed";
+        public string Sauce { get; set; } = "Marinara";
+        public string Cheese { get; set; } = "Mozzarella";
+        public string Toppings { get; set; } = string.Empty;
+        public List<Topping> ToppingEntities { get; set; } = new();
+        public int Quantity { get; set; } = 1;
+        public decimal BasePrice { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal TotalPrice => UnitPrice * Quantity;
+        public decimal OldUnitPrice { get; set; }
+        public bool UnitPriceChanged => Math.Abs(UnitPrice - OldUnitPrice) > 0.01m;
+        public bool IsAvailable { get; set; } = true;
+        public string? UnavailableReason { get; set; }
     }
 }
