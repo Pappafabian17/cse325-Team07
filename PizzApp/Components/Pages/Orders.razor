@@ -454,9 +454,7 @@
                         <p class="text-dark mb-2">
                             Are you sure you want to cancel this order? It is currently in the <strong>Received</strong> stage and is eligible for cancellation.
                         </p>
-                        <p class="text-muted small mb-3">
-                            Once cancelled, your full payment of <strong>$@_orderToCancel.Total.ToString("0.00")</strong> will be refunded to your account.
-                        </p>
+                        <p class="text-muted small mb-3">Once cancelled, this order cannot be restored.</p>
                         <div class="mb-2">
                             <label class="form-label small fw-semibold text-dark">Reason for cancellation (optional):</label>
                             <select class="form-select" @bind="_cancellationReason">
@@ -1010,7 +1008,7 @@
                 dbOrder.Status = OrderStatus.Cancelled;
                 await db.SaveChangesAsync();
 
-                _successMessage = $"Order #{dbOrder.OrderNumber} has been successfully cancelled. Your refund has been initiated.";
+                _successMessage = $"Order #{dbOrder.OrderNumber} has been successfully cancelled.";
                 _orderToCancel = null;
                 await LoadOrdersAsync();
             }
