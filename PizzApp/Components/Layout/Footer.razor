@@ -1,5 +1,9 @@
 @implements IDisposable
+@using Microsoft.EntityFrameworkCore
+@using PizzApp.Data
+
 @inject FrontendUserState UserState
+@inject IDbContextFactory<PizzAppDbContext> DbFactory
 
 <footer class="pizzapp-footer mt-auto border-top">
     <div class="container-xl py-5 px-3 px-md-4">
@@ -13,10 +17,12 @@
                 <p class="text-muted small mb-3" style="max-width: 320px; line-height: 1.6;">
                     Handcrafted specialty pizzas and custom creations made fresh to order with premium ingredients and our secret dough recipe.
                 </p>
-                <div class="d-flex gap-2">
-                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill">
-                        <i class="bi bi-clock me-1"></i> Open Daily: 11am – 10pm
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-danger-subtle text-danger px-2 py-1 rounded-pill text-start"
+                        style="white-space: normal;">
+                        <i class="bi bi-clock me-1"></i> Hours: @_operatingHours
                     </span>
+
                     <span class="badge bg-warning-subtle text-dark px-2 py-1 rounded-pill">
                         <i class="bi bi-geo-alt me-1"></i> Delivery & Pickup
                     </span>
@@ -98,9 +104,35 @@
 </style>
 
 @code {
-    protected override void OnInitialized()
+    private string _operatingHours =
+        "11:00 AM – 10:00 PM Daily";
+
+    protected override async Task OnInitializedAsync()
     {
         UserState.OnChange += StateHasChanged;
+
+        try
+        {
+            await using var db =
+                await DbFactory.CreateDbContextAsync();
+
+            var settings =
+                await db.StoreSettings
+                    .AsNoTracking()
+                    .OrderBy(settings => settings.Id)
+                    .FirstOrDefaultAsync();
+
+            if (settings is not null &&
+                !string.IsNullOrWhiteSpace(settings.OperatingHours))
+            {
+                _operatingHours =
+                    settings.OperatingHours.Trim();
+            }
+        }
+        catch
+        {
+            // Keep the default hours if settings cannot be loaded.
+        }
     }
 
     public void Dispose()
