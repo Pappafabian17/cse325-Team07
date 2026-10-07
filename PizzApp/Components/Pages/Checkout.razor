@@ -377,6 +377,12 @@
         _currentUser = await db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(user => user.Id == userId);
+
+        if (_currentUser is not null &&
+            !string.IsNullOrWhiteSpace(_currentUser.DeliveryAddress))
+        {
+            DeliveryAddress = _currentUser.DeliveryAddress;
+        }
     }
 
     private async Task PlaceOrder()
