@@ -196,7 +196,7 @@
                     </div>
 
                     <div class="d-flex justify-content-between py-2 text-muted small">
-                        <span>Sales Tax (6%)</span>
+                        <span>Sales Tax (@CartService.SalesTaxPercent.ToString("0.##")%)</span>
                         <span class="fw-semibold text-dark">
                             $@CartService.Tax.ToString("0.00")
                         </span>
@@ -234,9 +234,11 @@
 
 @code {
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         CartService.OnChange += HandleCartChanged;
+
+        await CartService.LoadStoreSettingsAsync();
     }
 
     private void HandleCartChanged()

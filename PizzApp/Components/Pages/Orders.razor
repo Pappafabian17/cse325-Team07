@@ -588,7 +588,9 @@
                                 <span class="fw-semibold">$@_reorderPreview.Subtotal.ToString("0.00")</span>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
-                                <span>Sales Tax (6%):</span>
+                                <span>
+                                    Sales Tax (@CartService.SalesTaxPercent.ToString("0.##")%):
+                                </span>
                                 <span class="fw-semibold">$@_reorderPreview.Tax.ToString("0.00")</span>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
@@ -1041,6 +1043,7 @@
 
         try
         {
+            await CartService.LoadStoreSettingsAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
             var specialtyPizzas = await db.SpecialtyPizzas.AsNoTracking().ToListAsync();
             var toppings = await db.Toppings.AsNoTracking().ToListAsync();
@@ -1149,7 +1152,10 @@
             }
 
             preview.Subtotal = preview.Items.Sum(i => i.TotalPrice);
-            preview.Tax = Math.Round(preview.Subtotal * 0.06m, 2);
+            preview.Tax =
+                Math.Round(
+                    preview.Subtotal * CartService.TaxRate,
+                    2);
             preview.DeliveryFee = sourceOrder.FulfillmentType == FulfillmentType.Delivery
                 ? CartService.DeliveryFee
                 : 0m;

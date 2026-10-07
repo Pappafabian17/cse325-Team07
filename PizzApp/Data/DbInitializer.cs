@@ -284,6 +284,20 @@ public static class DbInitializer
             await db.SaveChangesAsync();
         }
 
+        if (!await db.StoreSettings.AnyAsync())
+        {
+            db.StoreSettings.Add(
+                new StoreSettings
+                {
+                    OperatingHours = "11:00 AM – 10:00 PM Daily",
+                    DeliveryRadiusMiles = 8,
+                    DeliveryFee = 3.50m,
+                    SalesTaxPercent = 6.00m
+                });
+
+            await db.SaveChangesAsync();
+        }
+
         if (roleManager != null && userManager != null)
         {
             await SeedRolesAndUsersAsync(roleManager, userManager);

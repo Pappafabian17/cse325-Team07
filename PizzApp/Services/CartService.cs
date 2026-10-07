@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PizzApp.Models;
+using Microsoft.EntityFrameworkCore;
+using PizzApp.Data;
 
 namespace PizzApp.Services;
 
@@ -9,11 +11,22 @@ public class CartService
 {
     private readonly List<CartItem> _items = new();
 
+    private readonly IDbContextFactory<PizzAppDbContext> _dbFactory;
+
+    public CartService(
+        IDbContextFactory<PizzAppDbContext> dbFactory)
+    {
+        _dbFactory = dbFactory;
+    }
+
     public IReadOnlyList<CartItem> Items => _items;
 
-    public const decimal DeliveryFee = 3.50m;
+    public decimal DeliveryFee { get; private set; } = 3.50m;
 
-    public const decimal TaxRate = 0.06m;
+    public decimal TaxRate { get; private set; } = 0.06m;
+
+    public decimal SalesTaxPercent =>
+        TaxRate * 100m;
 
     public decimal Subtotal =>
         _items.Sum(item => item.TotalPrice);
@@ -28,6 +41,28 @@ public class CartService
         _items.Sum(item => item.Quantity);
 
     public event Action? OnChange;
+
+    public async Task LoadStoreSettingsAsync()
+    {
+        await using var db =
+            await _dbFactory.CreateDbContextAsync();
+
+        var settings =
+            await db.StoreSettings
+                .AsNoTracking()
+                .OrderBy(item => item.Id)
+                .FirstOrDefaultAsync();
+
+        if (settings is null)
+        {
+            return;
+        }
+
+        DeliveryFee = settings.DeliveryFee;
+        TaxRate = settings.SalesTaxPercent / 100m;
+
+        NotifyStateChanged();
+    }
 
     public void AddItem(CartItem item)
     {
