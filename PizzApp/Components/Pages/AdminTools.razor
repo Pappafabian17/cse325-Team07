@@ -147,6 +147,73 @@
                         </span>
                     </div>
                 </div>
+                <div class="row g-4 mb-4">
+
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                            <span class="text-muted small fw-semibold text-uppercase">
+                                30-Day Revenue
+                            </span>
+
+                            <span class="fs-2 fw-bold text-dark mt-2">
+                                $@_thirtyDayRevenue.ToString("N2")
+                            </span>
+
+                            <span class="text-muted small mt-1">
+                                From @_thirtyDayOrderCount completed order@(_thirtyDayOrderCount == 1 ? "" : "s")
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                            <span class="text-muted small fw-semibold text-uppercase">
+                                30-Day Completed Orders
+                            </span>
+
+                            <span class="fs-2 fw-bold text-dark mt-2">
+                                @_thirtyDayOrderCount
+                            </span>
+
+                            <span class="text-muted small mt-1">
+                                Rolling 30-day total
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                            <span class="text-muted small fw-semibold text-uppercase">
+                                30-Day Average Ticket
+                            </span>
+
+                            <span class="fs-2 fw-bold text-dark mt-2">
+                                $@_thirtyDayAverageTicket.ToString("N2")
+                            </span>
+
+                            <span class="text-muted small mt-1">
+                                @_thirtyDayAverageItemsPerOrder.ToString("0.0") items / order
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                            <span class="text-muted small fw-semibold text-uppercase">
+                                30-Day Top Pizza
+                            </span>
+
+                            <span class="fs-2 fw-bold text-danger mt-2">
+                                @_thirtyDayTopPizzaName
+                            </span>
+
+                            <span class="text-muted small mt-1">
+                                @_thirtyDayTopPizzaDetail
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
 
             </div>
         }
@@ -1035,6 +1102,18 @@
 
     private string _topPizzaDetail = "No sales today";
 
+    private decimal _thirtyDayRevenue;
+
+    private int _thirtyDayOrderCount;
+
+    private decimal _thirtyDayAverageTicket;
+
+    private decimal _thirtyDayAverageItemsPerOrder;
+
+    private string _thirtyDayTopPizzaName = "—";
+
+    private string _thirtyDayTopPizzaDetail = "No sales in the last 30 days";
+
     private List<StaffAccountViewModel> _staffAccounts = new();
 
     private bool _isLoadingStaff;
@@ -1284,13 +1363,18 @@
                     storeToday.AddDays(1),
                     storeTimeZone);
 
+            var thirtyDayStart =
+                TimeZoneInfo.ConvertTimeToUtc(
+                    storeToday.AddDays(-29),
+                    storeTimeZone);
+
             var todayOrders = await db.Orders
                 .AsNoTracking()
                 .Include(order => order.Items)
                 .Where(order =>
                     order.PlacedAt >= todayStart &&
                     order.PlacedAt < tomorrowStart &&
-                    order.Status != OrderStatus.Cancelled)
+                    order.Status == OrderStatus.Completed)
                 .ToListAsync();
 
             _todayOrderCount =
@@ -1318,6 +1402,36 @@
                 await db.Orders.CountAsync(order =>
                     order.Status != OrderStatus.Completed &&
                     order.Status != OrderStatus.Cancelled);
+
+            var thirtyDayOrders = await db.Orders
+                .AsNoTracking()
+                .Include(order => order.Items)
+                .Where(order =>
+                    order.PlacedAt >= thirtyDayStart &&
+                    order.PlacedAt < tomorrowStart &&
+                    order.Status == OrderStatus.Completed)
+                .ToListAsync();
+
+            _thirtyDayOrderCount =
+                thirtyDayOrders.Count;
+
+            _thirtyDayRevenue =
+                thirtyDayOrders.Sum(order => order.Total);
+
+            _thirtyDayAverageTicket =
+                _thirtyDayOrderCount > 0
+                    ? _thirtyDayRevenue / _thirtyDayOrderCount
+                    : 0m;
+
+            var thirtyDayTotalItems =
+                thirtyDayOrders
+                    .SelectMany(order => order.Items)
+                    .Sum(item => item.Quantity);
+
+            _thirtyDayAverageItemsPerOrder =
+                _thirtyDayOrderCount > 0
+                    ? (decimal)thirtyDayTotalItems / _thirtyDayOrderCount
+                    : 0m;
 
             var pizzaSales =
                 todayOrders
@@ -1363,6 +1477,53 @@
             {
                 _topPizzaName = "—";
                 _topPizzaDetail = "No sales today";
+            }
+
+            var thirtyDayPizzaSales =
+                thirtyDayOrders
+                    .SelectMany(order => order.Items)
+                    .GroupBy(item => item.PizzaName)
+                    .Select(group => new
+                    {
+                        Name = group.Key,
+                        Quantity = group.Sum(item => item.Quantity)
+                    })
+                    .OrderByDescending(item => item.Quantity)
+                    .ThenBy(item => item.Name)
+                    .ToList();
+
+            if (thirtyDayPizzaSales.Count > 0)
+            {
+                var topQuantity =
+                    thirtyDayPizzaSales[0].Quantity;
+
+                var topPizzas =
+                    thirtyDayPizzaSales
+                        .Where(item => item.Quantity == topQuantity)
+                        .ToList();
+
+                if (topPizzas.Count == 1)
+                {
+                    _thirtyDayTopPizzaName =
+                        topPizzas[0].Name;
+
+                    _thirtyDayTopPizzaDetail =
+                        $"{topQuantity} sold in the last 30 days";
+                }
+                else
+                {
+                    _thirtyDayTopPizzaName =
+                        $"{topPizzas.Count}-way tie";
+
+                    _thirtyDayTopPizzaDetail =
+                        $"{topQuantity} each in the last 30 days";
+                }
+            }
+            else
+            {
+                _thirtyDayTopPizzaName = "—";
+                _thirtyDayTopPizzaDetail =
+                    "No sales in the last 30 days";
             }
         }
         catch
