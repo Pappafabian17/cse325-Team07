@@ -282,7 +282,8 @@
         }
         catch (Exception ex)
         {
-            _addressErrorMessage = "Failed to load user profile: " + ex.Message;
+            Console.Error.WriteLine(ex);
+            _addressErrorMessage = "We couldn't load your profile. Please try again.";
         }
         finally
         {
@@ -324,7 +325,8 @@
         }
         catch (Exception ex)
         {
-            _addressErrorMessage = "An unexpected error occurred while saving: " + ex.Message;
+            Console.Error.WriteLine(ex);
+            _addressErrorMessage = "We couldn't save your profile changes. Please try again.";
         }
         finally
         {
@@ -390,7 +392,8 @@
         }
         catch (Exception ex)
         {
-            _passwordErrorMessage = "An unexpected error occurred while updating password: " + ex.Message;
+            Console.Error.WriteLine(ex);
+            _passwordErrorMessage = "We couldn't update your password. Please try again.";
         }
         finally
         {
