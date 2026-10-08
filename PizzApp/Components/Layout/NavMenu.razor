@@ -22,7 +22,7 @@
             </NavLink>
 
             <!-- Role-Based Navigation: Customer -->
-            <AuthorizeView Roles="Customer,Administrator">
+            <AuthorizeView Roles="Customer">
                 <NavLink href="orders" class="nav-item-link">
                     <i class="bi bi-clock-history me-1"></i> Order History
                 </NavLink>
@@ -108,7 +108,7 @@
         <!-- Mobile & Tablet Hamburger & Cart Button -->
         <div class="d-flex d-lg-none align-items-center gap-2">
             <!-- Mobile Quick Cart for Customer -->
-            <AuthorizeView Roles="Customer,Administrator">
+            <AuthorizeView Roles="Customer">
                 <NavLink href="cart" class="btn btn-sm btn-outline-danger p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
                     <i class="bi bi-cart3 fs-6"></i>
                 </NavLink>
@@ -137,7 +137,7 @@
                 </NavLink>
 
                 <!-- Role-Based Navigation: Customer -->
-                <AuthorizeView Roles="Customer,Administrator">
+                <AuthorizeView Roles="Customer">
                     <NavLink href="orders" class="mobile-nav-link" @onclick="CloseMobileMenu">
                         <i class="bi bi-clock-history me-2"></i> Order History / Tracking
                     </NavLink>
