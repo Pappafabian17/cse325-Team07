@@ -20,6 +20,8 @@ public class Order
 
     public OrderStatus Status { get; set; } = OrderStatus.Received;
 
+    public string? CancellationReason { get; set; }
+
     public decimal Subtotal { get; set; }
 
     public decimal Tax { get; set; }

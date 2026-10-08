@@ -367,6 +367,11 @@
                                                         <div>
                                                             <strong>Status:</strong>
                                                             @GetStatusLabel(order)
+                                                            @if (order.Status == OrderStatus.Cancelled &&
+                                                                !string.IsNullOrWhiteSpace(order.CancellationReason))
+                                                            {
+                                                                <span> — @order.CancellationReason</span>
+                                                            }
                                                         </div>
 
                                                         @if (order.FulfillmentType == FulfillmentType.Delivery)
@@ -1022,6 +1027,7 @@
             else
             {
                 dbOrder.Status = OrderStatus.Cancelled;
+                dbOrder.CancellationReason = _cancellationReason;
                 await db.SaveChangesAsync();
 
                 _successMessage = $"Order #{dbOrder.OrderNumber} has been successfully cancelled.";
