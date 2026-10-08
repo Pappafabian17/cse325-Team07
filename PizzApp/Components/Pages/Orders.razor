@@ -367,6 +367,11 @@
                                                         <div>
                                                             <strong>Status:</strong>
                                                             @GetStatusLabel(order)
+                                                            @if (order.Status == OrderStatus.Cancelled &&
+                                                                !string.IsNullOrWhiteSpace(order.CancellationReason))
+                                                            {
+                                                                <span> — @order.CancellationReason</span>
+                                                            }
                                                         </div>
 
                                                         @if (order.FulfillmentType == FulfillmentType.Delivery)
@@ -448,7 +453,12 @@
                             <i class="bi bi-exclamation-triangle-fill"></i>
                             Cancel Order #@_orderToCancel.OrderNumber
                         </h5>
-                        <button type="button" class="btn-close" @onclick="CloseCancelModal" disabled="@_isProcessingCancel"></button>
+                        <button type="button"
+                                class="btn-close"
+                                @onclick="CloseCancelModal"
+                                disabled="@_isProcessingCancel"
+                                aria-label="Close cancellation dialog">
+                        </button>
                     </div>
                     <div class="modal-body py-3">
                         <p class="text-dark mb-2">
@@ -456,8 +466,14 @@
                         </p>
                         <p class="text-muted small mb-3">Once cancelled, this order cannot be restored.</p>
                         <div class="mb-2">
-                            <label class="form-label small fw-semibold text-dark">Reason for cancellation (optional):</label>
-                            <select class="form-select" @bind="_cancellationReason">
+                            <label for="cancellation-reason"
+                                class="form-label small fw-semibold text-dark">
+                                Reason for cancellation (optional):
+                            </label>
+
+                            <select id="cancellation-reason"
+                                    class="form-select"
+                                    @bind="_cancellationReason">
                                 <option value="Changed my mind">Changed my mind</option>
                                 <option value="Ordered by mistake">Ordered by mistake</option>
                                 <option value="Delivery time too long">Delivery time too long</option>
@@ -499,7 +515,12 @@
                             <i class="bi bi-arrow-repeat text-danger"></i>
                             Order Again &bull; Replicate Order #@_reorderPreview.SourceOrder.OrderNumber
                         </h5>
-                        <button type="button" class="btn-close" @onclick="CloseReorderModal" disabled="@_isProcessingReorder"></button>
+                        <button type="button"
+                                class="btn-close"
+                                @onclick="CloseReorderModal"
+                                disabled="@_isProcessingReorder"
+                                aria-label="Close reorder dialog">
+                        </button>
                     </div>
                     <div class="modal-body py-3">
                         <p class="text-muted small mb-3">
@@ -1006,6 +1027,7 @@
             else
             {
                 dbOrder.Status = OrderStatus.Cancelled;
+                dbOrder.CancellationReason = _cancellationReason;
                 await db.SaveChangesAsync();
 
                 _successMessage = $"Order #{dbOrder.OrderNumber} has been successfully cancelled.";

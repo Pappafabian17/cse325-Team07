@@ -129,11 +129,12 @@
 
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
-                        <label class="form-label fw-semibold">
+                        <label for="builder-sauce" class="form-label fw-semibold">
                             Sauce
                         </label>
 
-                        <select class="form-select"
+                        <select id="builder-sauce"
+                                class="form-select"
                                 @bind="Working.Sauce">
                             @foreach (var sauce in SauceOptions)
                             {
@@ -143,11 +144,12 @@
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <label class="form-label fw-semibold">
+                        <label for="builder-cheese" class="form-label fw-semibold">
                             Cheese
                         </label>
 
-                        <select class="form-select"
+                        <select id="builder-cheese"
+                                class="form-select"
                                 @bind="Working.Cheese">
                             @foreach (var cheese in CheeseOptions)
                             {
@@ -260,7 +262,8 @@
                 <div class="quantity-picker">
                     <button type="button"
                             class="btn btn-outline-secondary"
-                            @onclick="DecreaseQuantity">
+                            @onclick="DecreaseQuantity"
+                            aria-label="Decrease quantity">
                         <i class="bi bi-dash"></i>
                     </button>
 
@@ -270,7 +273,8 @@
 
                     <button type="button"
                             class="btn btn-outline-secondary"
-                            @onclick="IncreaseQuantity">
+                            @onclick="IncreaseQuantity"
+                            aria-label="Increase quantity">
                         <i class="bi bi-plus"></i>
                     </button>
                 </div>
