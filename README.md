@@ -138,6 +138,7 @@ Open the local URL displayed by ASP.NET Core in the terminal.
 
 ## Project Structure
 
+```text
 PizzApp/
 ├── Components/
 │   ├── Layout/          Navigation and shared layout components
@@ -149,6 +150,7 @@ PizzApp/
 ├── wwwroot/             Static assets, images, CSS, and client resources
 ├── Program.cs           Application startup and service configuration
 └── PizzApp.csproj       .NET project configuration
+```
 
 ## Deployment
 
