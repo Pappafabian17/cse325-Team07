@@ -1,5 +1,6 @@
 <Router AppAssembly="typeof(Program).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
+        <!-- Route authorization complements role-aware navigation and protects direct URL access. -->
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
                 <div class="container py-5 text-center">

@@ -10,6 +10,7 @@ public static class PizzaRules
         "X-Large"
     ];
 
+    // Keep builder limits and base prices centralized so editing and reordering apply the same rules.
     public static int MaxToppings(string size) => size switch
     {
         "Small" => 4,

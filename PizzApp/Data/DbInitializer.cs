@@ -11,6 +11,7 @@ public static class DbInitializer
         RoleManager<IdentityRole>? roleManager = null,
         UserManager<ApplicationUser>? userManager = null)
     {
+        // Apply pending schema changes first, then seed only missing baseline data so admin edits survive restarts.
         await db.Database.MigrateAsync();
 
         if (!await db.SpecialtyPizzas.AnyAsync())
@@ -343,6 +344,7 @@ public static class DbInitializer
         foreach (var (email, name, role, password, address) in defaultUsers)
         {
             var existingUser = await userManager.FindByEmailAsync(email);
+            // Do not reset an existing account's password, profile, or role on later startups.
             if (existingUser == null)
             {
                 var user = new ApplicationUser

@@ -71,6 +71,7 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
 
         modelBuilder.Entity<Order>(entity =>
         {
+            // Store enum names in the database so order status and fulfillment records remain readable.
             entity.Property(order => order.FulfillmentType)
                 .HasConversion<string>();
 
@@ -92,6 +93,7 @@ public class PizzAppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(order => order.Customer)
                 .WithMany()
                 .HasForeignKey(order => order.CustomerId)
+                // Retain customer and order history together rather than cascading user deletion into orders.
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(order => new
