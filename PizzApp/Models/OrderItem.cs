@@ -2,6 +2,7 @@ namespace PizzApp.Models;
 
 public class OrderItem
 {
+    // These fields intentionally snapshot the purchased configuration and prices; menu edits must not rewrite history.
     public int Id { get; set; }
 
     public int OrderId { get; set; }

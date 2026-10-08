@@ -1,5 +1,6 @@
 @page "/admin/tools"
 @attribute [Authorize(Roles = "Administrator")]
+@* Route authorization is enforced server-side; hiding the admin link alone is not a security boundary. *@
 
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.EntityFrameworkCore
@@ -1237,6 +1238,7 @@
         _settingsError = string.Empty;
         _settingsSuccess = string.Empty;
 
+        // Validate shared store settings before saving because they are reused across customer-facing configuration and checkout calculations.
         var operatingHours =
             _storeSettings.OperatingHours?.Trim() ?? string.Empty;
 
@@ -1342,6 +1344,7 @@
             await using var db =
                 await DbFactory.CreateDbContextAsync();
 
+            // Report by the store's local calendar day, then convert boundaries to UTC for the stored timestamps.
             var storeTimeZone =
                 TimeZoneInfo.FindSystemTimeZoneById("America/Boise");
 
@@ -1371,6 +1374,7 @@
             var todayOrders = await db.Orders
                 .AsNoTracking()
                 .Include(order => order.Items)
+                // Revenue counts completed orders only; active and cancelled orders are not sales.
                 .Where(order =>
                     order.PlacedAt >= todayStart &&
                     order.PlacedAt < tomorrowStart &&

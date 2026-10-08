@@ -9,6 +9,7 @@ namespace PizzApp.Services;
 
 public class CartService
 {
+    // The scoped cart belongs to the current Blazor circuit; checkout copies its values into a database order.
     private readonly List<CartItem> _items = new();
 
     private readonly IDbContextFactory<PizzAppDbContext> _dbFactory;
@@ -55,6 +56,7 @@ public class CartService
 
         if (settings is null)
         {
+            // Keep the safe in-memory defaults when the store has not been initialized yet.
             return;
         }
 

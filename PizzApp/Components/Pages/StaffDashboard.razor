@@ -9,6 +9,7 @@
 @inject IDbContextFactory<PizzAppDbContext> DbFactory
 
 @attribute [Authorize(Roles = "Staff,Administrator")]
+@* Both roles may process orders; administrator access is additive, not a separate workflow. *@
 
 @implements IAsyncDisposable
 
@@ -408,6 +409,7 @@
             await using var db =
                 await DbFactory.CreateDbContextAsync();
 
+            // Re-read before advancing so the transition uses the current database status, not stale UI data.
             var databaseOrder =
                 await db.Orders
                     .FirstOrDefaultAsync(
@@ -449,6 +451,7 @@
 
     private static OrderStatus? GetNextStatus(Order order)
     {
+        // The terminal transition differs by fulfillment type: pickup is completed in-store, delivery leaves the store first.
         return order.Status switch
         {
             OrderStatus.Received =>

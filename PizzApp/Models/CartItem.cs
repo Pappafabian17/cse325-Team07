@@ -30,6 +30,7 @@ public class CartItem
 
     public int Quantity { get; set; } = 1;
 
+    // Derive topping charges from the selected toppings so UnitPrice and TotalPrice stay consistent when quantity changes.
     public decimal ToppingsTotal =>
         Toppings.Sum(topping => topping.Price);
 
@@ -41,6 +42,7 @@ public class CartItem
 
     public CartItem Copy()
     {
+        // Clone toppings as well as the item so builder edits cannot mutate the cart before saving.
         return new CartItem
         {
             CartItemId = CartItemId,

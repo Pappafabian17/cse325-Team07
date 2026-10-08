@@ -425,6 +425,7 @@
 
         try
         {
+            // Persist the cart's current values as an order snapshot; later menu or tax changes must not alter history.
             var order = new Order
             {
                 CustomerId = _currentUser.Id,
@@ -485,6 +486,7 @@
             OrderTotal = order.Total;
             PlacedOrderNumber = order.OrderNumber;
 
+            // Clear only after the database save succeeds; failures leave the cart available for retry.
             CartService.Clear();
 
             OrderPlaced = true;

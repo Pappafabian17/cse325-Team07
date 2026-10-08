@@ -93,6 +93,7 @@ app.UseStatusCodePagesWithReExecute(
 
 app.UseHttpsRedirection();
 
+// Authenticate before authorization so protected pages receive the user's role claims.
 app.UseAuthentication();
 app.UseAuthorization();
 

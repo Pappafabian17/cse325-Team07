@@ -35,6 +35,7 @@ public static class AuthEndpoints
 
             if (result.Succeeded)
             {
+                // Accept only local return paths so a submitted URL cannot redirect outside the app.
                 var destination = !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
                     ? returnUrl
                     : "/";
@@ -86,10 +87,10 @@ public static class AuthEndpoints
                 return Results.Redirect($"/register?error={Uri.EscapeDataString(errorMsg)}");
             }
 
-            // All newly registered users receive the Customer role by default
+            // All newly registered users receive the least-privileged customer role by default.
             await userManager.AddToRoleAsync(user, "Customer");
 
-            // Automatically sign them in
+            // Email confirmation is not part of this app's flow, so the new account can sign in immediately.
             await signInManager.SignInAsync(user, isPersistent: false);
 
             return Results.LocalRedirect("/");

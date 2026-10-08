@@ -680,6 +680,7 @@
 
     private Task? _refreshTask;
 
+    // Completed and cancelled orders are terminal history; only the remaining statuses need live tracking.
     private IEnumerable<Order> ActiveOrders =>
     _orders.Where(order =>
         order.Status != OrderStatus.Completed &&
@@ -805,6 +806,7 @@
 
     private static int GetCurrentStep(Order order)
     {
+        // Pickup completes at the store, while delivery adds an out-for-delivery stage.
         return order.Status switch
         {
             OrderStatus.Received => 1,
@@ -1014,6 +1016,7 @@
         try
         {
             await using var db = await DbFactory.CreateDbContextAsync();
+            // Re-read the order so cancellation is decided from the current database status, not stale page data.
             var dbOrder = await db.Orders.FirstOrDefaultAsync(o => o.Id == _orderToCancel.Id);
 
             if (dbOrder == null)
@@ -1022,6 +1025,7 @@
             }
             else if (dbOrder.Status != OrderStatus.Received)
             {
+                // Once staff starts preparation, the customer can no longer cancel the order from this page.
                 _errorMessage = $"Order #{dbOrder.OrderNumber} can no longer be cancelled because it is already in the '{GetStatusLabel(dbOrder)}' stage.";
             }
             else
@@ -1064,6 +1068,7 @@
 
         try
         {
+            // Reorder against current menu entities and store settings so availability and price changes are visible before confirmation.
             await CartService.LoadStoreSettingsAsync();
             await using var db = await DbFactory.CreateDbContextAsync();
             var specialtyPizzas = await db.SpecialtyPizzas.AsNoTracking().ToListAsync();
@@ -1209,6 +1214,7 @@
         {
             var source = _reorderPreview.SourceOrder;
 
+            // Create a new historical snapshot from the reviewed current-price preview; never duplicate the old order row.
             var newOrder = new Order
             {
                 CustomerId = _customerId!,
