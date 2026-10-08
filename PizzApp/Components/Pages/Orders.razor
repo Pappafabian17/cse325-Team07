@@ -1015,7 +1015,8 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Failed to cancel order: {ex.Message}";
+            Console.Error.WriteLine(ex);
+            _errorMessage = "We couldn't cancel your order. Please try again.";
         }
         finally
         {
@@ -1163,7 +1164,8 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Failed to check menu pricing: {ex.Message}";
+            Console.Error.WriteLine(ex);
+            _errorMessage = "We couldn't check the current menu pricing. Please try again.";
         }
         finally
         {
@@ -1224,7 +1226,8 @@
         }
         catch (Exception ex)
         {
-            _errorMessage = $"Failed to place replicated order: {ex.Message}";
+            Console.Error.WriteLine(ex);
+            _errorMessage = "We couldn't place your order again. Please try again.";
         }
         finally
         {

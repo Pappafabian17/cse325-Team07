@@ -75,7 +75,9 @@ try
 }
 catch (Exception ex)
 {
-    app.Logger.LogWarning(ex, "Could not initialize database. Continuing in offline mode.");
+    app.Logger.LogWarning(
+        ex,
+        "Could not initialize database. The application will continue, but database-backed features may be unavailable.");
 }
 
 // Configure the HTTP request pipeline.
