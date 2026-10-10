@@ -20,6 +20,7 @@ public static class AuthEndpoints
             [FromForm] string? password,
             [FromForm] bool? rememberMe,
             [FromForm] string? returnUrl,
+            UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager) =>
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
@@ -35,10 +36,31 @@ public static class AuthEndpoints
 
             if (result.Succeeded)
             {
+                var user = await userManager.FindByEmailAsync(email.Trim()) ??
+                           await userManager.FindByNameAsync(email.Trim());
+
+                string defaultDestination = "/";
+                if (user != null)
+                {
+                    var roles = await userManager.GetRolesAsync(user);
+                    if (roles.Contains("Administrator"))
+                    {
+                        defaultDestination = "/admin/tools";
+                    }
+                    else if (roles.Contains("Staff"))
+                    {
+                        defaultDestination = "/staff";
+                    }
+                }
+
                 // Accept only local return paths so a submitted URL cannot redirect outside the app.
-                var destination = !string.IsNullOrWhiteSpace(returnUrl) && returnUrl.StartsWith('/') && !returnUrl.StartsWith("//")
+                var destination = !string.IsNullOrWhiteSpace(returnUrl) &&
+                                  returnUrl.StartsWith('/') &&
+                                  !returnUrl.StartsWith("//") &&
+                                  returnUrl != "/"
                     ? returnUrl
-                    : "/";
+                    : defaultDestination;
+
                 return Results.LocalRedirect(destination);
             }
 

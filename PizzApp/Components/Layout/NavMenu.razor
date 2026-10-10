@@ -2,47 +2,98 @@
 
 <header class="pizzapp-navbar border-bottom">
     <div class="container-xl d-flex align-items-center justify-content-between py-2 px-3 px-md-4">
-        <!-- Brand Logo & Name -->
-        <NavLink href="" class="d-flex align-items-center gap-2 text-decoration-none pizzapp-brand" Match="NavLinkMatch.All">
-            <img src="images/pizzapp-logo.png" alt="PizzApp Logo" class="pizzapp-logo" />
-            <div class="d-flex flex-column">
-                <span class="pizzapp-brand-name">PizzApp</span>
-                <span class="pizzapp-brand-tagline d-none d-sm-inline">Fresh Pizza, Built Your Way</span>
-            </div>
-        </NavLink>
+        <!-- Brand Logo & Name (Role-Aware Link) -->
+        <AuthorizeView>
+            <Authorized>
+                @if (context.User.IsInRole("Administrator"))
+                {
+                    <NavLink href="admin/tools" class="d-flex align-items-center gap-2 text-decoration-none pizzapp-brand">
+                        <img src="images/pizzapp-logo.png" alt="PizzApp Logo" class="pizzapp-logo" />
+                        <div class="d-flex flex-column">
+                            <span class="pizzapp-brand-name">PizzApp</span>
+                            <span class="pizzapp-brand-tagline d-none d-sm-inline">Admin Control Panel</span>
+                        </div>
+                    </NavLink>
+                }
+                else if (context.User.IsInRole("Staff"))
+                {
+                    <NavLink href="staff" class="d-flex align-items-center gap-2 text-decoration-none pizzapp-brand">
+                        <img src="images/pizzapp-logo.png" alt="PizzApp Logo" class="pizzapp-logo" />
+                        <div class="d-flex flex-column">
+                            <span class="pizzapp-brand-name">PizzApp</span>
+                            <span class="pizzapp-brand-tagline d-none d-sm-inline">Kitchen & Staff Portal</span>
+                        </div>
+                    </NavLink>
+                }
+                else
+                {
+                    <NavLink href="" class="d-flex align-items-center gap-2 text-decoration-none pizzapp-brand" Match="NavLinkMatch.All">
+                        <img src="images/pizzapp-logo.png" alt="PizzApp Logo" class="pizzapp-logo" />
+                        <div class="d-flex flex-column">
+                            <span class="pizzapp-brand-name">PizzApp</span>
+                            <span class="pizzapp-brand-tagline d-none d-sm-inline">Fresh Pizza, Built Your Way</span>
+                        </div>
+                    </NavLink>
+                }
+            </Authorized>
+            <NotAuthorized>
+                <NavLink href="" class="d-flex align-items-center gap-2 text-decoration-none pizzapp-brand" Match="NavLinkMatch.All">
+                    <img src="images/pizzapp-logo.png" alt="PizzApp Logo" class="pizzapp-logo" />
+                    <div class="d-flex flex-column">
+                        <span class="pizzapp-brand-name">PizzApp</span>
+                        <span class="pizzapp-brand-tagline d-none d-sm-inline">Fresh Pizza, Built Your Way</span>
+                    </div>
+                </NavLink>
+            </NotAuthorized>
+        </AuthorizeView>
 
         <!-- Desktop Navigation Links -->
         <nav class="d-none d-lg-flex align-items-center gap-1 main-nav" aria-label="Main Navigation">
-            <!-- Public Navigation -->
-            <NavLink href="" class="nav-item-link" Match="NavLinkMatch.All">
-                <i class="bi bi-house-door me-1"></i> Home
-            </NavLink>
-            <NavLink href="menu" class="nav-item-link">
-                <i class="bi bi-journal-text me-1"></i> Menu
-            </NavLink>
-
-            <!-- Role-Based Navigation: Customer -->
-            <AuthorizeView Roles="Customer">
-                <NavLink href="orders" class="nav-item-link">
-                    <i class="bi bi-clock-history me-1"></i> Order History
-                </NavLink>
-                <NavLink href="cart" class="nav-item-link nav-item-cart">
-                    <i class="bi bi-cart3 me-1"></i> Shopping Cart
-                </NavLink>
-            </AuthorizeView>
-
-            <!-- Role-Based Navigation: Staff -->
-            <AuthorizeView Roles="Staff,Administrator">
-                <NavLink href="staff" class="nav-item-link nav-item-staff">
-                    <i class="bi bi-clipboard2-check me-1"></i> Staff Dashboard
-                </NavLink>
-            </AuthorizeView>
-
-            <!-- Role-Based Navigation: Administrator -->
-            <AuthorizeView Roles="Administrator">
-                <NavLink href="admin/tools" class="nav-item-link nav-item-admin">
-                    <i class="bi bi-shield-lock me-1"></i> Admin Tools
-                </NavLink>
+            <AuthorizeView>
+                <Authorized>
+                    @if (context.User.IsInRole("Administrator"))
+                    {
+                        <!-- Administrator: Management & Tools only -->
+                        <NavLink href="admin/tools" class="nav-item-link nav-item-admin">
+                            <i class="bi bi-shield-lock me-1"></i> Admin Tools
+                        </NavLink>
+                        <NavLink href="staff" class="nav-item-link nav-item-staff">
+                            <i class="bi bi-clipboard2-check me-1"></i> Staff Dashboard
+                        </NavLink>
+                    }
+                    else if (context.User.IsInRole("Staff"))
+                    {
+                        <!-- Staff: Kitchen dashboard only -->
+                        <NavLink href="staff" class="nav-item-link nav-item-staff">
+                            <i class="bi bi-clipboard2-check me-1"></i> Staff Dashboard
+                        </NavLink>
+                    }
+                    else
+                    {
+                        <!-- Customer: Ordering navigation -->
+                        <NavLink href="" class="nav-item-link" Match="NavLinkMatch.All">
+                            <i class="bi bi-house-door me-1"></i> Home
+                        </NavLink>
+                        <NavLink href="menu" class="nav-item-link">
+                            <i class="bi bi-journal-text me-1"></i> Menu
+                        </NavLink>
+                        <NavLink href="orders" class="nav-item-link">
+                            <i class="bi bi-clock-history me-1"></i> Order History
+                        </NavLink>
+                        <NavLink href="cart" class="nav-item-link nav-item-cart">
+                            <i class="bi bi-cart3 me-1"></i> Shopping Cart
+                        </NavLink>
+                    }
+                </Authorized>
+                <NotAuthorized>
+                    <!-- Public Visitor: Home and Menu -->
+                    <NavLink href="" class="nav-item-link" Match="NavLinkMatch.All">
+                        <i class="bi bi-house-door me-1"></i> Home
+                    </NavLink>
+                    <NavLink href="menu" class="nav-item-link">
+                        <i class="bi bi-journal-text me-1"></i> Menu
+                    </NavLink>
+                </NotAuthorized>
             </AuthorizeView>
         </nav>
 
@@ -107,7 +158,7 @@
 
         <!-- Mobile & Tablet Hamburger & Cart Button -->
         <div class="d-flex d-lg-none align-items-center gap-2">
-            <!-- Mobile Quick Cart for Customer -->
+            <!-- Mobile Quick Cart only for Customer -->
             <AuthorizeView Roles="Customer">
                 <NavLink href="cart" class="btn btn-sm btn-outline-danger p-2 rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
                     <i class="bi bi-cart3 fs-6"></i>
@@ -128,36 +179,51 @@
     {
         <div class="mobile-nav-drawer d-lg-none border-top px-3 py-3 shadow-sm">
             <div class="d-flex flex-column gap-1 mb-3">
-                <!-- Public Links -->
-                <NavLink href="" class="mobile-nav-link" Match="NavLinkMatch.All" @onclick="CloseMobileMenu">
-                    <i class="bi bi-house-door me-2"></i> Home
-                </NavLink>
-                <NavLink href="menu" class="mobile-nav-link" @onclick="CloseMobileMenu">
-                    <i class="bi bi-journal-text me-2"></i> Menu
-                </NavLink>
-
-                <!-- Role-Based Navigation: Customer -->
-                <AuthorizeView Roles="Customer">
-                    <NavLink href="orders" class="mobile-nav-link" @onclick="CloseMobileMenu">
-                        <i class="bi bi-clock-history me-2"></i> Order History / Tracking
-                    </NavLink>
-                    <NavLink href="cart" class="mobile-nav-link" @onclick="CloseMobileMenu">
-                        <i class="bi bi-cart3 me-2"></i> Shopping Cart
-                    </NavLink>
-                </AuthorizeView>
-
-                <!-- Role-Based Navigation: Staff -->
-                <AuthorizeView Roles="Staff,Administrator">
-                    <NavLink href="staff" class="mobile-nav-link mobile-nav-staff" @onclick="CloseMobileMenu">
-                        <i class="bi bi-clipboard2-check me-2"></i> Staff Dashboard
-                    </NavLink>
-                </AuthorizeView>
-
-                <!-- Role-Based Navigation: Administrator -->
-                <AuthorizeView Roles="Administrator">
-                    <NavLink href="admin/tools" class="mobile-nav-link mobile-nav-admin" @onclick="CloseMobileMenu">
-                        <i class="bi bi-shield-lock me-2"></i> Admin Tools
-                    </NavLink>
+                <AuthorizeView>
+                    <Authorized>
+                        @if (context.User.IsInRole("Administrator"))
+                        {
+                            <!-- Administrator Mobile Links -->
+                            <NavLink href="admin/tools" class="mobile-nav-link mobile-nav-admin" @onclick="CloseMobileMenu">
+                                <i class="bi bi-shield-lock me-2"></i> Admin Tools
+                            </NavLink>
+                            <NavLink href="staff" class="mobile-nav-link mobile-nav-staff" @onclick="CloseMobileMenu">
+                                <i class="bi bi-clipboard2-check me-2"></i> Staff Dashboard
+                            </NavLink>
+                        }
+                        else if (context.User.IsInRole("Staff"))
+                        {
+                            <!-- Staff Mobile Links -->
+                            <NavLink href="staff" class="mobile-nav-link mobile-nav-staff" @onclick="CloseMobileMenu">
+                                <i class="bi bi-clipboard2-check me-2"></i> Staff Dashboard
+                            </NavLink>
+                        }
+                        else
+                        {
+                            <!-- Customer Mobile Links -->
+                            <NavLink href="" class="mobile-nav-link" Match="NavLinkMatch.All" @onclick="CloseMobileMenu">
+                                <i class="bi bi-house-door me-2"></i> Home
+                            </NavLink>
+                            <NavLink href="menu" class="mobile-nav-link" @onclick="CloseMobileMenu">
+                                <i class="bi bi-journal-text me-2"></i> Menu
+                            </NavLink>
+                            <NavLink href="orders" class="mobile-nav-link" @onclick="CloseMobileMenu">
+                                <i class="bi bi-clock-history me-2"></i> Order History / Tracking
+                            </NavLink>
+                            <NavLink href="cart" class="mobile-nav-link" @onclick="CloseMobileMenu">
+                                <i class="bi bi-cart3 me-2"></i> Shopping Cart
+                            </NavLink>
+                        }
+                    </Authorized>
+                    <NotAuthorized>
+                        <!-- Public Mobile Links -->
+                        <NavLink href="" class="mobile-nav-link" Match="NavLinkMatch.All" @onclick="CloseMobileMenu">
+                            <i class="bi bi-house-door me-2"></i> Home
+                        </NavLink>
+                        <NavLink href="menu" class="mobile-nav-link" @onclick="CloseMobileMenu">
+                            <i class="bi bi-journal-text me-2"></i> Menu
+                        </NavLink>
+                    </NotAuthorized>
                 </AuthorizeView>
             </div>
 
