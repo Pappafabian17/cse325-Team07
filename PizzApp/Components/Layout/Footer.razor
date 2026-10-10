@@ -31,40 +31,65 @@
 
             <!-- Quick Navigation -->
             <div class="col-6 col-sm-4 col-md-2">
-                <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Explore</h6>
-                <ul class="list-unstyled d-flex flex-column gap-2 small">
-                    <li><NavLink href="" class="text-muted text-decoration-none footer-link" Match="NavLinkMatch.All">Home</NavLink></li>
-                    <li><NavLink href="menu" class="text-muted text-decoration-none footer-link">Our Menu</NavLink></li>
-                    @if (UserState.CurrentRole == "Customer")
-                    {
-                        <li><NavLink href="cart" class="text-muted text-decoration-none footer-link">Shopping Cart</NavLink></li>
-                        <li><NavLink href="orders" class="text-muted text-decoration-none footer-link">Order Tracking</NavLink></li>
-                    }
-                </ul>
+                <AuthorizeView>
+                    <Authorized>
+                        @if (context.User.IsInRole("Administrator"))
+                        {
+                            <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Management</h6>
+                            <ul class="list-unstyled d-flex flex-column gap-2 small">
+                                <li><NavLink href="admin/tools" class="text-muted text-decoration-none footer-link">Admin Tools</NavLink></li>
+                                <li><NavLink href="staff" class="text-muted text-decoration-none footer-link">Staff Dashboard</NavLink></li>
+                            </ul>
+                        }
+                        else if (context.User.IsInRole("Staff"))
+                        {
+                            <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Operations</h6>
+                            <ul class="list-unstyled d-flex flex-column gap-2 small">
+                                <li><NavLink href="staff" class="text-muted text-decoration-none footer-link">Staff Dashboard</NavLink></li>
+                            </ul>
+                        }
+                        else
+                        {
+                            <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Explore</h6>
+                            <ul class="list-unstyled d-flex flex-column gap-2 small">
+                                <li><NavLink href="" class="text-muted text-decoration-none footer-link" Match="NavLinkMatch.All">Home</NavLink></li>
+                                <li><NavLink href="menu" class="text-muted text-decoration-none footer-link">Our Menu</NavLink></li>
+                                <li><NavLink href="cart" class="text-muted text-decoration-none footer-link">Shopping Cart</NavLink></li>
+                                <li><NavLink href="orders" class="text-muted text-decoration-none footer-link">Order Tracking</NavLink></li>
+                            </ul>
+                        }
+                    </Authorized>
+                    <NotAuthorized>
+                        <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Explore</h6>
+                        <ul class="list-unstyled d-flex flex-column gap-2 small">
+                            <li><NavLink href="" class="text-muted text-decoration-none footer-link" Match="NavLinkMatch.All">Home</NavLink></li>
+                            <li><NavLink href="menu" class="text-muted text-decoration-none footer-link">Our Menu</NavLink></li>
+                        </ul>
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
 
             <!-- Portals & Account -->
             <div class="col-6 col-sm-4 col-md-3">
                 <h6 class="fw-bold text-dark mb-3 text-uppercase small" style="letter-spacing: 0.05em;">Account & Portals</h6>
                 <ul class="list-unstyled d-flex flex-column gap-2 small">
-                    @if (UserState.IsAuthenticated)
-                    {
-                        <li><NavLink href="profile" class="text-muted text-decoration-none footer-link">My Profile / Settings</NavLink></li>
-                        @if (UserState.CurrentRole == "Staff")
-                        {
-                            <li><NavLink href="staff" class="text-muted text-decoration-none footer-link">Staff Dashboard</NavLink></li>
-                        }
-                        @if (UserState.CurrentRole == "Administrator")
-                        {
-                            <li><NavLink href="admin/tools" class="text-muted text-decoration-none footer-link">Admin Tools</NavLink></li>
-                        }
-                    }
-                    else
-                    {
-                        <li class="text-muted small">
-                            Sign in to access your account and authorized tools.
-                        </li>
-                    }
+                    <AuthorizeView>
+                        <Authorized>
+                            <li><NavLink href="profile" class="text-muted text-decoration-none footer-link">My Profile / Settings</NavLink></li>
+                            @if (context.User.IsInRole("Administrator"))
+                            {
+                                <li><NavLink href="admin/tools" class="text-muted text-decoration-none footer-link">Admin Tools</NavLink></li>
+                            }
+                            @if (context.User.IsInRole("Staff") || context.User.IsInRole("Administrator"))
+                            {
+                                <li><NavLink href="staff" class="text-muted text-decoration-none footer-link">Staff Dashboard</NavLink></li>
+                            }
+                        </Authorized>
+                        <NotAuthorized>
+                            <li><NavLink href="login" class="text-muted text-decoration-none footer-link">Sign In</NavLink></li>
+                            <li><NavLink href="register" class="text-muted text-decoration-none footer-link">Register Account</NavLink></li>
+                        </NotAuthorized>
+                    </AuthorizeView>
                 </ul>
             </div>
 

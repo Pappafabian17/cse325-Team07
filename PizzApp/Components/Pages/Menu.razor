@@ -75,6 +75,9 @@
     <div class="row g-4">
         @foreach (var pizza in SpecialtyPizzas)
         {
+            var selectedSize = GetSelectedSize(pizza.Id);
+            var currentPrice = pizza.GetPriceForSize(selectedSize);
+
             <div class="col-12 col-md-6 col-xl-3">
                 <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden pizza-card">
                     <!-- Static Pizza Image -->
@@ -93,7 +96,7 @@
                     <div class="card-body d-flex flex-column p-4">
                         <div class="d-flex justify-content-between align-items-baseline mb-1">
                             <h5 class="card-title fw-bold mb-0 text-dark">@pizza.Name</h5>
-                            <span class="fs-5 fw-bold text-danger">$@pizza.SmallPrice.ToString("F2")</span>
+                            <span class="fs-5 fw-bold text-danger">$@currentPrice.ToString("F2")</span>
                         </div>
                         <p class="card-text text-muted small mb-3">@pizza.Description</p>
 
@@ -110,22 +113,50 @@
                             </div>
                         </div>
 
-                        <!-- Price Breakdown by Size -->
+                        <!-- Size Selector -->
                         <div class="pt-3 border-top mt-auto">
-                            <div class="d-flex justify-content-between text-muted small mb-3" style="font-size: 0.75rem;">
-                                <span>SM: <strong>$@pizza.SmallPrice.ToString("F2")</strong></span>
-                                <span>MD: <strong>$@pizza.MediumPrice.ToString("F2")</strong></span>
-                                <span>LG: <strong>$@pizza.LargePrice.ToString("F2")</strong></span>
-                                <span>XL: <strong>$@pizza.XLargePrice.ToString("F2")</strong></span>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-uppercase small fw-bold text-muted" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+                                    Size: <strong class="text-dark">@selectedSize</strong>
+                                </span>
+                                <span class="badge bg-danger-subtle text-danger fw-semibold" style="font-size: 0.75rem;">
+                                    $@currentPrice.ToString("F2")
+                                </span>
+                            </div>
+
+                            <div class="size-btn-group mb-3" role="group" aria-label="Select size for @pizza.Name">
+                                @foreach (var size in PizzaRules.Sizes)
+                                {
+                                    var isSelected = selectedSize == size;
+                                    var sizeAbbr = size switch
+                                    {
+                                        "Small" => "SM",
+                                        "Medium" => "MD",
+                                        "Large" => "LG",
+                                        "X-Large" => "XL",
+                                        _ => size
+                                    };
+                                    var sizePrice = pizza.GetPriceForSize(size);
+
+                                    <button type="button"
+                                            class="size-btn @(isSelected ? "size-btn-active" : "")"
+                                            @onclick="() => SetSelectedSize(pizza.Id, size)"
+                                            title="@size ($@sizePrice.ToString("F2"))">
+                                        <span class="d-block fw-bold">@sizeAbbr</span>
+                                        <span class="d-block size-btn-price">
+                                            $@sizePrice.ToString("F2")
+                                        </span>
+                                    </button>
+                                }
                             </div>
 
                             @if (pizza.IsAvailable)
                             {
                                 <button type="button"
                                         class="btn btn-pizzapp-primary w-100 rounded-3 py-2 d-flex align-items-center justify-content-center gap-2"
-                                        @onclick="() => AddToCart(pizza)">
+                                        @onclick="() => AddToCart(pizza, selectedSize)">
                                     <i class="bi bi-cart-plus"></i>
-                                    Order Now
+                                    Order @selectedSize
                                 </button>
                             }
                             else
@@ -184,10 +215,57 @@
         padding: 0.25rem 0.5rem;
         border-radius: 9999px;
     }
+
+    .size-btn-group {
+        display: flex;
+        border-radius: 0.5rem;
+        background-color: #F8F9FA;
+        border: 1px solid #E5E7EB;
+        padding: 3px;
+        gap: 3px;
+    }
+
+    .size-btn {
+        flex: 1;
+        border: 1px solid transparent;
+        border-radius: 0.375rem;
+        padding: 0.3rem 0.15rem;
+        font-size: 0.74rem;
+        text-align: center;
+        background: transparent;
+        color: #4B5563;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        line-height: 1.15;
+    }
+
+    .size-btn:hover:not(.size-btn-active) {
+        background-color: #E9ECEF;
+        color: #1F2937;
+    }
+
+    .size-btn-active {
+        background-color: #C0392B !important;
+        color: #ffffff !important;
+        border-color: #A93226 !important;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(192, 57, 43, 0.25);
+    }
+
+    .size-btn-price {
+        font-size: 0.67rem;
+        opacity: 0.85;
+    }
+
+    .size-btn-active .size-btn-price {
+        opacity: 1;
+        font-weight: 600;
+    }
 </style>
 
 @code {
     private List<SpecialtyPizza> SpecialtyPizzas = new();
+    private readonly Dictionary<int, string> _selectedSizes = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,26 +279,38 @@
             .ToListAsync();
     }
 
+    private string GetSelectedSize(int pizzaId)
+    {
+        return _selectedSizes.TryGetValue(pizzaId, out var size) ? size : "Medium";
+    }
 
-    private void AddToCart(SpecialtyPizza pizza)
+    private void SetSelectedSize(int pizzaId, string size)
+    {
+        _selectedSizes[pizzaId] = size;
+    }
+
+    private void AddToCart(SpecialtyPizza pizza, string size)
     {
         if (!pizza.IsAvailable)
         {
             return;
         }
 
+        var selectedSize = string.IsNullOrWhiteSpace(size) ? "Medium" : size;
+        var price = pizza.GetPriceForSize(selectedSize);
+
         var cartItem = new CartItem
         {
             PizzaId = pizza.Id,
             PizzaName = pizza.Name,
             ImagePath = pizza.ImagePath,
-            Size = "Small",
-            BasePrice = pizza.SmallPrice,
+            Size = selectedSize,
+            BasePrice = price,
             Quantity = 1
         };
 
         CartService.AddItem(cartItem);
 
         Navigation.NavigateTo("/cart");
-}
+    }
 }

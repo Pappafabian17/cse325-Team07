@@ -20,4 +20,13 @@ public class SpecialtyPizza
 
     public bool IsAvailable { get; set; } = true;
     public List<SpecialtyPizzaIngredient> Ingredients { get; set; } = new();
+
+    public decimal GetPriceForSize(string size) => size switch
+    {
+        "Small" => SmallPrice,
+        "Medium" => MediumPrice,
+        "Large" => LargePrice,
+        "X-Large" or "Extra Large" or "XL" => XLargePrice,
+        _ => MediumPrice
+    };
 }
